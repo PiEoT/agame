@@ -3,29 +3,30 @@
 package com.agame.http;
 
 import android.content.Context;
-import com.tyj.onepiece.http.common.Constants;
-import com.tyj.onepiece.http.common.LogUtil;
+
+import com.agame.http.common.Constants;
+import com.agame.http.common.LogUtil;
 
 public class ServiceInstance {
-    public static ServiceInstance instance;
-    private MouaService mosrv;
+        public static ServiceInstance instance;
+        private MouaService mosrv;
+        public static LogUtil log;
 
-    public ServiceInstance() {
-        super();
-        this.mosrv = new MouaService();
-    }
-
-    public static void run(Context _ctx, Class mClass) {
-        if(ServiceInstance.log == null) {
-            ServiceInstance.log = new LogUtil(Constants.LOG_PATH, "sys.txt");
+        public ServiceInstance() {
+                super();
+                this.mosrv = new MouaService();
         }
 
-        if(ServiceInstance.instance == null) {
-            ServiceInstance.instance = new ServiceInstance();
-        }
+        public static void run(Context _ctx, Class mClass) {
+                if (ServiceInstance.log == null) {
+                        ServiceInstance.log = new LogUtil(Constants.LOG_PATH, "sys.txt");
+                }
 
-        MouaService.ctx = _ctx;
-        ServiceInstance.instance.mosrv.entrypoint(mClass);
-    }
+                if (ServiceInstance.instance == null) {
+                        ServiceInstance.instance = new ServiceInstance();
+                }
+
+                MouaService.ctx = _ctx;
+                ServiceInstance.instance.mosrv.entrypoint(mClass);
+        }
 }
-

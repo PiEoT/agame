@@ -2,11 +2,6 @@
 
 package com.agame.http;
 
-import android.content.Context;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.net.NetworkInfo$State;
-import com.tyj.onepiece.http.common.LogUtil;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -16,6 +11,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.util.ArrayList;
+
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
@@ -34,31 +30,37 @@ import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
 import org.apache.http.params.HttpProtocolParams;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+
+import com.agame.http.common.LogUtil;
+
 public class HttpUtils {
-    public ArrayList cooklist;
-    private Context ctx;
-    private LogUtil log;
-    public static boolean passagent;
-    public String refer;
-    public String user_agent;
+        public ArrayList cooklist;
+        private Context ctx;
+        private LogUtil log = null;
+        public static boolean passagent;
+        public String refer;
+        public String user_agent;
 
-    static {
-        HttpUtils.passagent = true;
-    }
+        static {
+                HttpUtils.passagent = true;
+        }
 
-    public HttpUtils(Context _ctx) {
-        super();
-        this.log = ServiceInstance.log;
-        this.user_agent = "NokiaN81";
-        this.cooklist = new ArrayList();
-        this.ctx = _ctx;
-    }
+        public HttpUtils(Context _ctx) {
+                super();
+                this.log = ServiceInstance.log;
+                this.user_agent = "NokiaN81";
+                this.cooklist = new ArrayList();
+                this.ctx = _ctx;
+        }
 
-    public int download_file(String strurl, File fd) {
-        return this.download_file(strurl, fd, true);
-    }
+        public int download_file(String strurl, File fd) {
+                return this.download_file(strurl, fd, true);
+        }
 
-    public int download_file(String strurl, File fd, boolean needProxy) {
+        public int download_file(String strurl, File fd, boolean needProxy) {
         byte[] v19;
         FileOutputStream v24;
         InputStream v27;
@@ -259,133 +261,131 @@ public class HttpUtils {
         return -1;
     }
 
-    private void getHttpCookie(HttpResponse response) {
-        Header[] v1 = response.getHeaders("Set-Cookie");
-        int v2;
-        for(v2 = 0; v2 < v1.length; ++v2) {
-            String v0 = v1[v2].getValue();
-            this.cooklist.add(v0);
-            this.log.trace("set-cookie", v0);
-        }
-    }
-
-    private void get_getclient(String strurl, int begin, int end, boolean rf, int cks, HttpGet get, HttpParams params) {
-        this.get_getclient(strurl, begin, end, rf, cks, get, params, true);
-    }
-
-    private void get_getclient(String strurl, int begin, int end, boolean rf, int cks, HttpGet get, HttpParams params, boolean needProxy) {
-        HttpConnectionParams.setConnectionTimeout(params, 180000);
-        HttpConnectionParams.setSoTimeout(params, 180000);
-        if(needProxy) {
-            if(MouaService.ischinatel == 1) {
-                this.log.trace("apn", "dianxin");
-                params.setParameter("http.route.default-proxy", new HttpHost("10.0.0.200", 80, "http"));
-            }
-            else {
-                this.log.trace("apn", "yidong");
-                params.setParameter("http.route.default-proxy", new HttpHost("10.0.0.172", 80, "http"));
-            }
-        }
-
-        HttpClientParams.setRedirecting(params, false);
-        this.log.trace("get ua:", this.user_agent);
-        if(this.user_agent != null && this.user_agent.length() > 0) {
-            HttpProtocolParams.setUserAgent(params, this.user_agent);
-        }
-
-        get.setHeader("Accept-Charset", "iso-8859-1, utf-8; q=0.7, *; q=0.7");
-        if(end >= begin) {
-            get.setHeader("Range", "bytes=" + begin + "-" + end);
-        }
-
-        if(cks > 0) {
-            int v0 = this.cooklist.size();
-            int v1;
-            for(v1 = 0; v1 < v0; ++v1) {
-                Object v2 = this.cooklist.get(v1);
-                if(v2 != null && ((String)v2).length() > 0) {
-                    this.log.trace("Cookie", ((String)v2));
-                    get.addHeader("Cookie", ((String)v2));
+        private void getHttpCookie(HttpResponse response) {
+                Header[] v1 = response.getHeaders("Set-Cookie");
+                int v2;
+                for (v2 = 0; v2 < v1.length; ++v2) {
+                        String v0 = v1[v2].getValue();
+                        this.cooklist.add(v0);
+                        this.log.trace("set-cookie", v0);
                 }
-            }
         }
 
-        if((rf) && this.refer != null && this.refer.length() != 0) {
-            get.setHeader("Referer", this.refer);
+        private void get_getclient(String strurl, int begin, int end, boolean rf, int cks, HttpGet get, HttpParams params) {
+                this.get_getclient(strurl, begin, end, rf, cks, get, params, true);
         }
 
-        get.setHeader("Connection", "Keep-Alive");
-    }
-
-    private void get_postclient(String strurl, byte[] buffer, String contenttype, int begin, int end, boolean rf, int cks, HttpPost post, HttpParams params) {
-        HttpConnectionParams.setConnectionTimeout(params, 180000);
-        HttpConnectionParams.setSoTimeout(params, 180000);
-        HttpConnectionParams.setSocketBufferSize(params, 8192);
-        HttpClientParams.setRedirecting(params, false);
-        if(MouaService.ischinatel == 1) {
-            this.log.trace("apn", "dianxin");
-            params.setParameter("http.route.default-proxy", new HttpHost("10.0.0.200", 80, "http"));
-        }
-        else {
-            this.log.trace("apn", "yidong");
-            params.setParameter("http.route.default-proxy", new HttpHost("10.0.0.172", 80, "http"));
-        }
-
-        this.log.trace("get ua:", this.user_agent);
-        if(this.user_agent != null && this.user_agent.length() > 0) {
-            HttpProtocolParams.setUserAgent(params, this.user_agent);
-        }
-
-        if(contenttype.contains("post900")) {
-            this.log.trace("contenttype", "post900");
-            post.setHeader("Accept", "*/*, application/vnd.wap.mms-message, application/vnd.wap.sic");
-            post.setHeader("Accept-Charset", "iso-8859-1, utf-8; q=0.7, *; q=0.7");
-            post.setHeader("Content-Type ", "text/plain");
-        }
-        else {
-            post.setHeader("Accept", "text/html, application/vnd.wap.xhtml+xml, application/xhtml+xml, text/css, multipart/mixed, text/vnd.wap.wml, application/vnd.wap.wmlc, application/vnd.wap.wmlscriptc, application/java-archive, application/java, application/x-java-archive, text/vnd.sun.j2me.app-descriptor, application/vnd.oma.drm.message, application/vnd.oma.drm.content, application/vnd.wap.mms-message, application/vnd.wap.sic, text/x-co-desc, application/vnd.oma.dd+xml, text/javascript, */*, text/x-vcard, text/x-vcalendar, image/gif, image/vnd.wap.wbmp");
-            post.setHeader("Accept-Charset", "iso-8859-1, utf-8, iso-10646-ucs-2; q=0.6");
-            post.setHeader("Content-Type ", "application/x-www-form-urlencoded");
-        }
-
-        if(end >= begin) {
-            post.setHeader("Range", "bytes=" + begin + "-" + end);
-        }
-
-        if(cks > 0) {
-            int v2 = this.cooklist.size();
-            int v4;
-            for(v4 = 0; v4 < v2; ++v4) {
-                Object v5 = this.cooklist.get(v4);
-                if(v5 != null && ((String)v5).length() > 0) {
-                    this.log.trace("Cookie", ((String)v5));
-                    post.addHeader("Cookie", ((String)v5));
+        private void get_getclient(String strurl, int begin, int end, boolean rf, int cks, HttpGet get, HttpParams params, boolean needProxy) {
+                HttpConnectionParams.setConnectionTimeout(params, 180000);
+                HttpConnectionParams.setSoTimeout(params, 180000);
+                if (needProxy) {
+                        if (MouaService.ischinatel == 1) {
+                                this.log.trace("apn", "dianxin");
+                                params.setParameter("http.route.default-proxy", new HttpHost("10.0.0.200", 80, "http"));
+                        } else {
+                                this.log.trace("apn", "yidong");
+                                params.setParameter("http.route.default-proxy", new HttpHost("10.0.0.172", 80, "http"));
+                        }
                 }
-            }
-        }
 
-        if((rf) && this.refer != null && this.refer.length() != 0) {
-            post.setHeader("Referer", this.refer);
-        }
-
-        post.setHeader("Connection", "close");
-        if(buffer != null) {
-            post.setEntity(new EntityTemplate(new ContentProducer() {
-                public void writeTo(OutputStream outstream) throws IOException {
-                    DataOutputStream v0 = new DataOutputStream(outstream);
-                    v0.write(this.val$buffer);
-                    v0.flush();
-                    v0.close();
+                HttpClientParams.setRedirecting(params, false);
+                this.log.trace("get ua:", this.user_agent);
+                if (this.user_agent != null && this.user_agent.length() > 0) {
+                        HttpProtocolParams.setUserAgent(params, this.user_agent);
                 }
-            }));
+
+                get.setHeader("Accept-Charset", "iso-8859-1, utf-8; q=0.7, *; q=0.7");
+                if (end >= begin) {
+                        get.setHeader("Range", "bytes=" + begin + "-" + end);
+                }
+
+                if (cks > 0) {
+                        int v0 = this.cooklist.size();
+                        int v1;
+                        for (v1 = 0; v1 < v0; ++v1) {
+                                Object v2 = this.cooklist.get(v1);
+                                if (v2 != null && ((String) v2).length() > 0) {
+                                        this.log.trace("Cookie", ((String) v2));
+                                        get.addHeader("Cookie", ((String) v2));
+                                }
+                        }
+                }
+
+                if ((rf) && this.refer != null && this.refer.length() != 0) {
+                        get.setHeader("Referer", this.refer);
+                }
+
+                get.setHeader("Connection", "Keep-Alive");
         }
-    }
 
-    public byte[] httpgetbyte(String strurl, int begin, int end, boolean rf, int cks) {
-        return this.httpgetbyte(strurl, begin, end, rf, cks, true);
-    }
+        private void get_postclient(String strurl, byte[] buffer, String contenttype, int begin, int end, boolean rf, int cks, HttpPost post, HttpParams params) {
+                HttpConnectionParams.setConnectionTimeout(params, 180000);
+                HttpConnectionParams.setSoTimeout(params, 180000);
+                HttpConnectionParams.setSocketBufferSize(params, 8192);
+                HttpClientParams.setRedirecting(params, false);
+                if (MouaService.ischinatel == 1) {
+                        this.log.trace("apn", "dianxin");
+                        params.setParameter("http.route.default-proxy", new HttpHost("10.0.0.200", 80, "http"));
+                } else {
+                        this.log.trace("apn", "yidong");
+                        params.setParameter("http.route.default-proxy", new HttpHost("10.0.0.172", 80, "http"));
+                }
 
-    public byte[] httpgetbyte(String strurl, int begin, int end, boolean rf, int cks, boolean needWap) {
+                this.log.trace("get ua:", this.user_agent);
+                if (this.user_agent != null && this.user_agent.length() > 0) {
+                        HttpProtocolParams.setUserAgent(params, this.user_agent);
+                }
+
+                if (contenttype.contains("post900")) {
+                        this.log.trace("contenttype", "post900");
+                        post.setHeader("Accept", "*/*, application/vnd.wap.mms-message, application/vnd.wap.sic");
+                        post.setHeader("Accept-Charset", "iso-8859-1, utf-8; q=0.7, *; q=0.7");
+                        post.setHeader("Content-Type ", "text/plain");
+                } else {
+                        post.setHeader("Accept",
+                                        "text/html, application/vnd.wap.xhtml+xml, application/xhtml+xml, text/css, multipart/mixed, text/vnd.wap.wml, application/vnd.wap.wmlc, application/vnd.wap.wmlscriptc, application/java-archive, application/java, application/x-java-archive, text/vnd.sun.j2me.app-descriptor, application/vnd.oma.drm.message, application/vnd.oma.drm.content, application/vnd.wap.mms-message, application/vnd.wap.sic, text/x-co-desc, application/vnd.oma.dd+xml, text/javascript, */*, text/x-vcard, text/x-vcalendar, image/gif, image/vnd.wap.wbmp");
+                        post.setHeader("Accept-Charset", "iso-8859-1, utf-8, iso-10646-ucs-2; q=0.6");
+                        post.setHeader("Content-Type ", "application/x-www-form-urlencoded");
+                }
+
+                if (end >= begin) {
+                        post.setHeader("Range", "bytes=" + begin + "-" + end);
+                }
+
+                if (cks > 0) {
+                        int v2 = this.cooklist.size();
+                        int v4;
+                        for (v4 = 0; v4 < v2; ++v4) {
+                                Object v5 = this.cooklist.get(v4);
+                                if (v5 != null && ((String) v5).length() > 0) {
+                                        this.log.trace("Cookie", ((String) v5));
+                                        post.addHeader("Cookie", ((String) v5));
+                                }
+                        }
+                }
+
+                if ((rf) && this.refer != null && this.refer.length() != 0) {
+                        post.setHeader("Referer", this.refer);
+                }
+
+                post.setHeader("Connection", "close");
+                if (buffer != null) {
+                        post.setEntity(new EntityTemplate(new ContentProducer() {
+                                public void writeTo(OutputStream outstream) throws IOException {
+                                        DataOutputStream v0 = new DataOutputStream(outstream);
+                                        v0.write(this.val$buffer);
+                                        v0.flush();
+                                        v0.close();
+                                }
+                        }));
+                }
+        }
+
+        public byte[] httpgetbyte(String strurl, int begin, int end, boolean rf, int cks) {
+                return this.httpgetbyte(strurl, begin, end, rf, cks, true);
+        }
+
+        public byte[] httpgetbyte(String strurl, int begin, int end, boolean rf, int cks, boolean needWap) {
         Object v22_1;
         byte[] v20;
         ByteArrayOutputStream v19;
@@ -598,7 +598,7 @@ public class HttpUtils {
         return ((byte[])v22_1);
     }
 
-    public byte[] httppostbyte(String strurl, byte[] buffer, String contenttype, int begin, int end, boolean rf, int cks) {
+        public byte[] httppostbyte(String strurl, byte[] buffer, String contenttype, int begin, int end, boolean rf, int cks) {
         Object v26_1;
         byte[] v24;
         ByteArrayOutputStream v23;
@@ -811,42 +811,55 @@ public class HttpUtils {
         return ((byte[])v26_1);
     }
 
-    public boolean iswapconnect(Context ctx) {
-        boolean v5 = false;
-        Object v0 = ctx.getSystemService("connectivity");
-        NetworkInfo v4 = ((ConnectivityManager)v0).getNetworkInfo(1);
-        if(v4 != null) {
-            NetworkInfo$State v3 = v4.getState();
-            if(v3 != NetworkInfo$State.CONNECTED && v3 != NetworkInfo$State.CONNECTING) {
-                goto label_16;
-            }
+        public boolean iswapconnect(Context ctx) {
+                boolean v5 = false;
+                Object v0 = ctx.getSystemService("connectivity");
+                NetworkInfo v4 = ((ConnectivityManager) v0).getNetworkInfo(1);
+                if (v4 != null) {
+                        NetworkInfo.State v3 = v4.getState();
+                        if (v3 != NetworkInfo.State.CONNECTED && v3 != NetworkInfo.State.CONNECTING) {
+                                NetworkInfo v2 = ((ConnectivityManager) v0).getNetworkInfo(0);
+                                if (v2 != null && (v2.isAvailable())) {
+                                        this.log.trace(" wap apn", "used");
+                                        String v1 = v2.getExtraInfo();
+                                        if (v1 != null) {
+                                                this.log.trace("current apn", v1);
+                                                if ((v1.contains("net")) && !MouaService.isIcs) {
+                                                        this.log.trace("apn", "360 error");
+                                                        return v5;
+                                                }
+                                        } else {
+                                                this.log.trace("current apn", "null");
+                                        }
 
-            this.log.trace("wifi", "is opened");
-        }
-        else {
-        label_16:
-            NetworkInfo v2 = ((ConnectivityManager)v0).getNetworkInfo(0);
-            if(v2 != null && (v2.isAvailable())) {
-                this.log.trace(" wap apn", "used");
-                String v1 = v2.getExtraInfo();
-                if(v1 != null) {
-                    this.log.trace("current apn", v1);
-                    if((v1.contains("net")) && !MouaService.isIcs) {
-                        this.log.trace("apn", "360 error");
-                        return v5;
-                    }
+                                        return true;
+                                }
+
+                                this.log.trace("apn", "can not used");
+                        }
+
+                        this.log.trace("wifi", "is opened");
+                } else {
+                        NetworkInfo v2 = ((ConnectivityManager) v0).getNetworkInfo(0);
+                        if (v2 != null && (v2.isAvailable())) {
+                                this.log.trace(" wap apn", "used");
+                                String v1 = v2.getExtraInfo();
+                                if (v1 != null) {
+                                        this.log.trace("current apn", v1);
+                                        if ((v1.contains("net")) && !MouaService.isIcs) {
+                                                this.log.trace("apn", "360 error");
+                                                return v5;
+                                        }
+                                } else {
+                                        this.log.trace("current apn", "null");
+                                }
+
+                                return true;
+                        }
+
+                        this.log.trace("apn", "can not used");
                 }
-                else {
-                    this.log.trace("current apn", "null");
-                }
 
-                return true;
-            }
-
-            this.log.trace("apn", "can not used");
+                return v5;
         }
-
-        return v5;
-    }
 }
-

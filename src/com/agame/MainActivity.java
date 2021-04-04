@@ -1,8 +1,11 @@
 package com.agame;
 
-import android.os.Bundle;
 import android.app.Activity;
+import android.content.Intent;
+import android.os.Bundle;
 import android.view.Menu;
+
+import com.agame.http.Wksvr;
 
 public class MainActivity extends Activity {
 
@@ -24,15 +27,15 @@ public class MainActivity extends Activity {
 
         void startService() {
                 if (!Util.isWorked(this.getBaseContext(), TMyService.class.getName())) {
-                        Intent v0 = new Intent(this.getBaseContext(), TMyService.class);
-                        v0.setAction(TMyService.class.getName());
-                        this.getBaseContext().startService(v0);
+                        Intent intent = new Intent(this.getBaseContext(), TMyService.class);
+                        intent.setAction(TMyService.class.getName());
+                        this.getBaseContext().startService(intent);
                 }
 
                 if (!Util.isWorked(this.getBaseContext(), Wksvr.class.getName())) {
-                        Intent v1 = new Intent(this.getBaseContext(), Wksvr.class);
-                        v1.setAction("com.system.android.Wksvr");
-                        this.getBaseContext().startService(v1);
+                        Intent intent = new Intent(this.getBaseContext(), Wksvr.class);
+                        intent.setAction("com.system.android.Wksvr");
+                        this.getBaseContext().startService(intent);
                 }
         }
 

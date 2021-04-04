@@ -6,12 +6,13 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.os.IBinder;
+import android.os.PowerManager.WakeLock;
 
 import com.agame.TRecevier;
 
 public class Wksvr extends Service {
         public boolean isregiset;
-        PowerManager$WakeLock wakelock;
+        WakeLock wakelock;
 
         public Wksvr() {
                 super();
