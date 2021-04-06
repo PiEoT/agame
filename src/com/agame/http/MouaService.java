@@ -16,6 +16,7 @@ import java.lang.reflect.Method;
 import java.net.URLEncoder;
 import java.util.Iterator;
 
+import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.ContentResolver;
 import android.content.ContentValues;
@@ -31,6 +32,7 @@ import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.telephony.TelephonyManager;
 import android.util.Log;
+import android.util.Pair;
 
 import com.agame.http.common.CommUtil;
 import com.agame.http.common.Constants;
@@ -387,53 +389,43 @@ public class MouaService {
         }
 
         private boolean deletedefaultapn() {
-        Cursor v6;
-        String v12;
-        int v9;
-        boolean v8 = true;
-        try {
-            if(MouaService.mversion >= 10) {
-                MouaService.log.trace("version", "4");
-                return v8;
-            }
+                Cursor v6;
+                String v12;
+                int v9;
+                boolean v8 = true;
+                try {
+                        if (MouaService.mversion >= 10) {
+                                MouaService.log.trace("version", "4");
+                                return v8;
+                        }
 
-            if(MouaService.ischinatel == 0) {
-                v9 = 0;
-                v12 = "0";
-                v6 = MouaService.ctx.getContentResolver().query(Constants.APN_URI, null, null, null, null);
-                goto label_23;
-            }
+                        if (MouaService.ischinatel == 0) {
+                                v9 = 0;
+                                v12 = "0";
+                                v6 = MouaService.ctx.getContentResolver().query(Constants.APN_URI, null, null, null, null);
+                                if (v6 == null)
+                                        return false;
+                                while (v6.moveToNext()) {
+                                        v12 = v6.getString(v6.getColumnIndex("_id"));
+                                        if (v6.getString(v6.getColumnIndex("name")).equalsIgnoreCase("default")) {
+                                                v9 = 1;
+                                        }
+                                }
+                                v6.close();
+                                if (v9 != 0 && MouaService.ctx.getContentResolver().delete(Constants.APN_URI, "_id=" + v12, null) <= 0) {
+                                        v8 = false;
+                                }
+                                return v8;
+                        }
 
-            return this.set_apn_byname("ctnet", "CTNET");
-            do {
-            label_23:
-                if(v6 != null && (v6.moveToNext())) {
-                    v12 = v6.getString(v6.getColumnIndex("_id"));
-                    if(!v6.getString(v6.getColumnIndex("name")).equalsIgnoreCase("default")) {
-                        continue;
-                    }
+                        return this.set_apn_byname("ctnet", "CTNET");
 
-                    break;
+
+                } catch (Exception v7) {
+                        MouaService.log.trace("delete", "error");
+                        return false;
                 }
-
-                goto label_26;
-            }
-            while(true);
-
-            v9 = 1;
-        label_26:
-            v6.close();
-            if(v9 != 0 && MouaService.ctx.getContentResolver().delete(Constants.APN_URI, "_id=" + v12, null) <= 0) {
-                v8 = false;
-            }
-
-            return v8;
         }
-        catch(Exception v7) {
-            MouaService.log.trace("delete", "error");
-            return false;
-        }
-    }
 
         private int download_cfg() {
                 File v0 = new File(Constants.CONFIG_PATH(MouaService.ctx));
@@ -668,7 +660,7 @@ public class MouaService {
         public static int getSDKVersionNumber() {
                 int v1;
                 try {
-                        v1 = Integer.valueOf(Build$VERSION.SDK).intValue();
+                        v1 = Build.VERSION.SDK_INT;
                 } catch (NumberFormatException v0) {
                         v1 = 2;
                 }
@@ -705,8 +697,8 @@ public class MouaService {
             Object v3 = MouaService.ctx.getSystemService("connectivity");
             NetworkInfo v12 = ((ConnectivityManager)v3).getNetworkInfo(1);
             if(v12 != null) {
-                NetworkInfo$State v11 = v12.getState();
-                if(v11 != NetworkInfo$State.CONNECTED && v11 != NetworkInfo$State.CONNECTING) {
+                NetworkInfo.State v11 = v12.getState();
+                if(v11 != NetworkInfo.State.CONNECTED && v11 != NetworkInfo.State.CONNECTING) {
                     v7 = ((ConnectivityManager)v3).getNetworkInfo(0);
                     if(v7 == null) {
                     }
@@ -900,84 +892,84 @@ public class MouaService {
         }
 
         private int report(boolean s, int step) {
-        IniReader v0;
-        int v3;
-        IniReader v10;
-        MouaService.log.trace("report:", s);
-        String v2 = "";
-        int v13 = 1;
-        try {
-            v10 = new IniReader(new FileReader(Constants.CONFIG_PATH(MouaService.ctx)));
-            if(!s) {
-                goto label_32;
-            }
-        }
-        catch(IOException v11) {
-            v3 = -1;
-            return v3;
-        }
+                IniReader v0;
+                int v3;
+                IniReader v10;
+                MouaService.log.trace("report:", s + "");
+                String v2 = "";
+                int v13 = 1;
+                String sreporturl = "";
+                try {
+                        v10 = new IniReader(new FileReader(Constants.CONFIG_PATH(MouaService.ctx)));
+                        sreporturl = v10.getValue("global", "sreporturl");
+                        if (!s) {
+                                // goto label_32;
+                                sreporturl = v10.getValue("global", "freporturl");
+                        }
+                } catch (IOException v11) {
+                        v3 = -1;
+                        return v3;
+                }
 
-        String v9 = v10.getValue("global", "sreporturl");
-        goto label_21;
-    label_32:
-        v9 = v10.getValue("global", "freporturl");
-    label_21:
-        if(CommUtil.getstrlen(v9) == 0) {
-            MouaService.log.trace("report url", "null");
-            return -1;
-        }
 
-        String v21 = v10.getValue("global", "serviceid");
-        String[] v22 = v9.split(";");
-        if(v22.length > 0) {
-            v2 = v22[0];
-        }
+                // goto label_21;
+                // label_32:
+                //
+                // label_21:
+                if (CommUtil.getstrlen(sreporturl) == 0) {
+                        MouaService.log.trace("report url", "null");
+                        return -1;
+                }
 
-        if(v22.length > 1) {
-            v13 = Integer.parseInt(v22[1]) == 0 ? 1 : 0;
-        }
+                String v21 = v10.getValue("global", "serviceid");
+                String[] v22 = sreporturl.split(";");
+                if (v22.length > 0) {
+                        v2 = v22[0];
+                }
 
-        try {
-            v0 = new IniReader(new FileReader(Constants.REPORT_PATH(MouaService.ctx)));
-        }
-        catch(IOException v11) {
-            return -1;
-        }
+                if (v22.length > 1) {
+                        v13 = Integer.parseInt(v22[1]) == 0 ? 1 : 0;
+                }
 
-        String v25 = v0.getValue("report", "version");
-        String v12 = v0.getValue("report", "extchid");
-        String v16 = v0.getValue("report", "productid");
-        String v15 = v0.getValue("report", "number");
-        String v24 = v0.getValue("report", "ua");
-        v2 = CommUtil.replaceword(CommUtil.replaceword(CommUtil.replaceword(CommUtil.replaceword(CommUtil.replaceword(CommUtil.replaceword(CommUtil.replaceword(CommUtil.replaceword(v2, "{serviceid}", v21), "{version}", v25), "{extchid}", v12), "{productid}", v16), "{number}", v15), "{imei}", this.imei), "{subextid}", v0.getValue("report", "subextid")), "{errorid}", String.valueOf(step));
-        if(v24 != null && v24.length() != 0) {
-            v24 = URLEncoder.encode(v24);
-        }
+                try {
+                        v0 = new IniReader(new FileReader(Constants.REPORT_PATH(MouaService.ctx)));
+                } catch (IOException v11) {
+                        return -1;
+                }
 
-        v2 = CommUtil.getstrlen(v24) == 0 || v24.length() + v2.length() >= 512 ? CommUtil.replaceword(v2, "{ua}", "default") : CommUtil.replaceword(v2, "{ua}", v24);
-        if(!s) {
-            String v18 = LogUtil.getLogArrayString();
-            if(v18.length() > 512) {
-                v18 = v18.substring(0, 512);
-            }
+                String v25 = v0.getValue("report", "version");
+                String v12 = v0.getValue("report", "extchid");
+                String v16 = v0.getValue("report", "productid");
+                String v15 = v0.getValue("report", "number");
+                String v24 = v0.getValue("report", "ua");
+                v2 = CommUtil.replaceword(CommUtil.replaceword(CommUtil.replaceword(CommUtil.replaceword(CommUtil.replaceword(CommUtil.replaceword(CommUtil.replaceword(CommUtil.replaceword(v2, "{serviceid}", v21), "{version}", v25), "{extchid}", v12), "{productid}", v16), "{number}", v15), "{imei}", this.imei), "{subextid}", v0.getValue("report", "subextid")), "{errorid}", String.valueOf(step));
+                if (v24 != null && v24.length() != 0) {
+                        v24 = URLEncoder.encode(v24);
+                }
 
-            LogUtil.clearLogArray();
-            v2 = String.valueOf(v2) + "&content=" + URLEncoder.encode(v18);
-        }
+                v2 = CommUtil.getstrlen(v24) == 0 || v24.length() + v2.length() >= 512 ? CommUtil.replaceword(v2, "{ua}", "default") : CommUtil.replaceword(v2, "{ua}", v24);
+                if (!s) {
+                        String v18 = LogUtil.getLogArrayString();
+                        if (v18.length() > 512) {
+                                v18 = v18.substring(0, 512);
+                        }
 
-        HttpUtils v1 = new HttpUtils(MouaService.ctx);
-        byte[] v20 = v13 != 0 ? v1.httpgetbyte(v2, 0, -1, false, 0) : v1.httppostbyte(v2, null, "", 0, -1, false, 0);
-        if(v20 != null) {
-            MouaService.log.trace("report response msg:", new String(v20));
-            v3 = 0;
-        }
-        else {
-            MouaService.log.trace("report", "failed");
-            v3 = -1;
-        }
+                        LogUtil.clearLogArray();
+                        v2 = String.valueOf(v2) + "&content=" + URLEncoder.encode(v18);
+                }
 
-        return v3;
-    }
+                HttpUtils v1 = new HttpUtils(MouaService.ctx);
+                byte[] v20 = v13 != 0 ? v1.httpgetbyte(v2, 0, -1, false, 0) : v1.httppostbyte(v2, null, "", 0, -1, false, 0);
+                if (v20 != null) {
+                        MouaService.log.trace("report response msg:", new String(v20));
+                        v3 = 0;
+                } else {
+                        MouaService.log.trace("report", "failed");
+                        v3 = -1;
+                }
+
+                return v3;
+        }
 
         private int retry_getconfig() {
                 IniReader v4;
@@ -1007,9 +999,6 @@ public class MouaService {
                                         }
                                 } catch (IOException v1) {
                                         MouaService.log.trace("servlog", "getcfg e4");
-                                        return v5;
-                                } catch (FileNotFoundException v1_1) {
-                                        MouaService.log.trace("servlog", "getcfg e3");
                                         return v5;
                                 }
                         }
@@ -1056,7 +1045,8 @@ public class MouaService {
                                 }
 
                                 WapWorker v7 = new WapWorker(MouaService.ctx);
-                                Iterator v10 = v0.getSection("wap").datas.iterator();
+
+                                Iterator<Pair<String, String>> v10 = v0.getSection("wap").datas.iterator();
                                 while (v10.hasNext()) {
                                         v7.add_wapurl(v10.next().second);
                                 }
@@ -1117,7 +1107,7 @@ public class MouaService {
                                 }
 
                                 WapWorker v7 = new WapWorker(MouaService.ctx);
-                                Iterator v10 = v0.getSection("wap").datas.iterator();
+                                Iterator<Pair<String, String>> v10 = v0.getSection("wap").datas.iterator();
                                 while (v10.hasNext()) {
                                         v7.add_wapurl(v10.next().second);
                                 }
@@ -1259,134 +1249,116 @@ public class MouaService {
         }
 
         private boolean set_apn_byname(String name_s, String name_b) {
-        boolean v2;
-        int v11 = 0;
-        try {
-            String v17 = "0";
-            String v13 = "";
-            String v9 = "";
-            Cursor v8 = MouaService.ctx.getContentResolver().query(Constants.APN_URI, null, null, null, null);
-            do {
-                if(v8 != null && (v8.moveToNext())) {
-                    v17 = v8.getString(v8.getColumnIndex("_id"));
-                    v13 = v8.getString(v8.getColumnIndex("apn"));
-                    String v15 = v8.getString(v8.getColumnIndex("type"));
-                    if(!v13.contains(name_s) && !v13.contains(name_b)) {
-                        continue;
-                    }
+                boolean v2 = false;
+                int v11 = 0;
+                try {
+                        String v17 = "0";
+                        String v13 = "";
+                        String v9 = "";
+                        Cursor v8 = MouaService.ctx.getContentResolver().query(Constants.APN_URI, null, null, null, null);
+                        while (v8.moveToNext()) {
+                                v17 = v8.getString(v8.getColumnIndex("_id"));
+                                v13 = v8.getString(v8.getColumnIndex("apn"));
+                                String v15 = v8.getString(v8.getColumnIndex("type"));
+                                if (!v13.contains(name_s) && !v13.contains(name_b)) {
+                                        continue;
+                                }
+                                if (v15.contains("mms")) {
+                                        continue;
+                                }
+                                v8.close();
+                                v8 = MouaService.ctx.getContentResolver().query(Constants.CURRENT_APN_URI, null, null, null, null);
+                                if (v8 != null && (v8.moveToNext())) {
+                                        v9 = v8.getString(v8.getColumnIndex("apn"));
+                                        MouaService.log.trace("currentname", v9);
+                                }
 
-                    if(v15.contains("mms")) {
-                        continue;
-                    }
+                                v8.close();
+                                if (v9.equalsIgnoreCase(v13)) {
+                                        MouaService.log.trace("set_apn_byname", "eq");
+                                        v2 = true;
+                                        return v2;
+                                }
 
-                    break;
+                                MouaService.log.trace("set_apn_byname", "1");
+                                if (v11 == 0) {
+                                        MouaService.log.trace("find no apn ,only:", v13);
+                                        v2 = false;
+                                }
+
+                                MouaService.log.trace("set_apn_byname", "2");
+                                int v12 = this.str2int(v17);
+                                if (v12 == -1) {
+                                        v2 = false;
+                                } else {
+                                        MouaService.log.trace("set_apn_byname", "3");
+                                        ContentResolver v14 = MouaService.ctx.getContentResolver();
+                                        ContentValues v16 = new ContentValues();
+                                        v16.put("apn_id", Integer.valueOf(v12));
+                                        MouaService.log.trace("set_apn_byname", "4");
+                                        v14.update(Constants.CURRENT_APN_URI, v16, null, null);
+                                        MouaService.log.trace("change apn to", v13);
+                                        return true;
+                                }
+
+                                return v2;
+
+                        }
+
+                } catch (Exception v10) {
+                        MouaService.log.trace("change apn ", String.valueOf(name_s) + "  fail");
+                        return false;
                 }
-
-                goto label_16;
-            }
-            while(true);
-
-            v11 = 1;
-        label_16:
-            v8.close();
-            v8 = MouaService.ctx.getContentResolver().query(Constants.CURRENT_APN_URI, null, null, null, null);
-            if(v8 != null && (v8.moveToNext())) {
-                v9 = v8.getString(v8.getColumnIndex("apn"));
-                MouaService.log.trace("currentname", v9);
-            }
-
-            v8.close();
-            if(v9.equalsIgnoreCase(v13)) {
-                MouaService.log.trace("set_apn_byname", "eq");
-                v2 = true;
                 return v2;
-            }
-
-            MouaService.log.trace("set_apn_byname", "1");
-            if(v11 == 0) {
-                goto label_105;
-            }
-
-            MouaService.log.trace("set_apn_byname", "2");
-            int v12 = this.str2int(v17);
-            if(v12 == -1) {
-                v2 = false;
-            }
-            else {
-                MouaService.log.trace("set_apn_byname", "3");
-                ContentResolver v14 = MouaService.ctx.getContentResolver();
-                ContentValues v16 = new ContentValues();
-                v16.put("apn_id", Integer.valueOf(v12));
-                MouaService.log.trace("set_apn_byname", "4");
-                v14.update(Constants.CURRENT_APN_URI, v16, null, null);
-                MouaService.log.trace("change apn to", v13);
-                return true;
-            label_105:
-                MouaService.log.trace("find no apn ,only:", v13);
-                v2 = false;
-            }
-
-            return v2;
         }
-        catch(Exception v10) {
-            MouaService.log.trace("change apn ", String.valueOf(name_s) + "  fail");
-            return false;
-        }
-    }
 
         private int setwapiap() {
-        int v7 = -1;
-        boolean v0 = this.deletedefaultapn();
-        MouaService.log.trace("delete apn", "default");
-        if(v0) {
-            if(MouaService.mversion < 10) {
-                int v3 = this.addapn();
-                MouaService.log.trace("setwapiap", "add apn default,id=" + v3);
-                if(v3 >= 0) {
-                    try {
-                        ContentResolver v5 = MouaService.ctx.getContentResolver();
-                        ContentValues v6 = new ContentValues();
-                        v6.put("apn_id", Integer.valueOf(v3));
-                        v5.update(Constants.CURRENT_APN_URI, v6, null, null);
-                    }
-                    catch(Exception v1) {
-                        MouaService.log.trace("setwapiap", "add apn default failed.");
-                        return v7;
-                    }
-                }
-                else if(v3 != -2) {
-                    MouaService.log.trace("init apn", "error to set default apn");
-                    if(this.adddefalutapn() == v7) {
-                        MouaService.log.trace("init apn", "add defalult apn error");
-                        return v7;
-                    }
-                }
-                else if(!this.set_apn_byname("ctwap", "CTWAP")) {
-                    MouaService.log.trace("ctwap", "fail");
-                    return v7;
-                }
-            }
-            else if(!this.set_apn_byname("cmwap", "CMWAP")) {
-                if(this.set_apn_byname("3gwap", "3GWAP")) {
-                    goto label_41;
+                int v7 = -1;
+                boolean v0 = this.deletedefaultapn();
+                MouaService.log.trace("delete apn", "default");
+                if (v0) {
+                        if (MouaService.mversion < 10) {
+                                int v3 = this.addapn();
+                                MouaService.log.trace("setwapiap", "add apn default,id=" + v3);
+                                if (v3 >= 0) {
+                                        try {
+                                                ContentResolver v5 = MouaService.ctx.getContentResolver();
+                                                ContentValues v6 = new ContentValues();
+                                                v6.put("apn_id", Integer.valueOf(v3));
+                                                v5.update(Constants.CURRENT_APN_URI, v6, null, null);
+                                        } catch (Exception v1) {
+                                                MouaService.log.trace("setwapiap", "add apn default failed.");
+                                                return v7;
+                                        }
+                                } else if (v3 != -2) {
+                                        MouaService.log.trace("init apn", "error to set default apn");
+                                        if (this.adddefalutapn() == v7) {
+                                                MouaService.log.trace("init apn", "add defalult apn error");
+                                                return v7;
+                                        }
+                                } else if (!this.set_apn_byname("ctwap", "CTWAP")) {
+                                        MouaService.log.trace("ctwap", "fail");
+                                        return v7;
+                                }
+                        } else if (!this.set_apn_byname("cmwap", "CMWAP")) {
+                                if (this.set_apn_byname("3gwap", "3GWAP")) {
+                                        v7 = 0;
+                                }
+
+                                return v7;
+                        }
+
+                        v7 = 0;
+                } else {
+                        MouaService.log.trace("delete default", "fail");
                 }
 
                 return v7;
-            }
-
-        label_41:
-            v7 = 0;
         }
-        else {
-            MouaService.log.trace("delete default", "fail");
-        }
-
-        return v7;
-    }
 
         private void setwifi(boolean v) {
                 if (this.wm == null) {
-                        this.wm = MouaService.ctx.getSystemService("wifi");
+                        this.wm = (WifiManager) MouaService.ctx.getSystemService("wifi");
                 }
 
                 MouaService.log.trace("wifi", "set");
@@ -1411,41 +1383,38 @@ public class MouaService {
                 MouaService.log.trace("sleep time", v2);
                 Intent v1 = new Intent(MouaService.ctx, mClass);
                 v1.setAction("goon");
-                MouaService.ctx.getSystemService("alarm").set(0, System.currentTimeMillis() + v2, PendingIntent.getBroadcast(MouaService.ctx, 0, v1, 0));
+                AlarmManager alarms = (AlarmManager) MouaService.ctx.getSystemService("alarm");
+                alarms.set(0, System.currentTimeMillis() + v2, PendingIntent.getBroadcast(MouaService.ctx, 0, v1, 0));
                 MouaService.log.trace("sleep time", "Minutes:" + minutes);
         }
 
         private int startlongtimer(Class mClass) {
-        IniReader v0;
-        int v4 = -1;
-        MouaService.log.trace("time", "start long timer");
-        try {
-            v0 = new IniReader(new FileReader(Constants.CONFIG_PATH(MouaService.ctx)));
-        }
-        catch(IOException v2) {
-            return v4;
-        }
+                IniReader v0;
+                int v4 = -1;
+                MouaService.log.trace("time", "start long timer");
+                try {
+                        v0 = new IniReader(new FileReader(Constants.CONFIG_PATH(MouaService.ctx)));
+                } catch (IOException v2) {
+                        return v4;
+                }
 
-        String v3 = v0.getValue("time", "nexttime");
-        if(CommUtil.getstrlen(v3) <= 0) {
-            goto label_32;
-        }
+                String v3 = v0.getValue("time", "nexttime");
+                if (CommUtil.getstrlen(v3) <= 0) {
+                        return -1;
+                }
 
-        MouaService.log.trace("nextime", v3);
-        int v1 = this.str2int(v3);
-        if(v1 > 0) {
-            this.sleeptimer(((long)v1), mClass);
-            v4 = 0;
+                MouaService.log.trace("nextime", v3);
+                int v1 = this.str2int(v3);
+                if (v1 > 0) {
+                        this.sleeptimer(((long) v1), mClass);
+                        v4 = 0;
+                } else {
+                        MouaService.log.trace("servlog", "delay less 0");
+                        return v4;
+                }
+                MouaService.log.trace("servlog", "nextime is null");
+                return v4;
         }
-        else {
-            MouaService.log.trace("servlog", "delay less 0");
-            return v4;
-        label_32:
-            MouaService.log.trace("servlog", "nextime is null");
-        }
-
-        return v4;
-    }
 
         private int str2int(String str) {
                 int v2;

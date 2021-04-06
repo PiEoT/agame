@@ -13,7 +13,7 @@ import java.util.Map;
 import android.util.Pair;
 
 public class IniReader {
-        class Section {
+        public class Section {
                 public String name;
                 public List<Pair<String, String>> datas;
                 public IniReader iniReader;
